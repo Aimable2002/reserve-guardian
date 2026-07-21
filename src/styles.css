@@ -4,6 +4,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-reserve-navy: oklch(0.208 0.042 265.755);
+  --color-reserve-emerald: oklch(0.62 0.14 158);
+  --color-reserve-slate: oklch(0.554 0.046 257.417);
+  --color-reserve-bg: oklch(0.984 0.003 247.858);
+}
+
 /*
  * Design system definition.
  *
