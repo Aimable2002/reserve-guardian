@@ -1,19 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ArrowDownRight, ArrowUpRight, Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { useStore } from "@/lib/store";
 import {
-  INITIAL_BALANCE,
-  INITIAL_MONTHLY_COST,
-  INITIAL_RESERVES,
   computeRunway,
   formatUSD,
   reserveProgress,
   targetAmount,
-  type Reserve,
 } from "@/lib/reserve-data";
 
 export const Route = createFileRoute("/")({
@@ -37,23 +36,44 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-type TxMode = "deposit" | "withdraw";
+type TxMode = "deposit" | "withdraw" | "allocate";
+// Target key: "unallocated" or a reserve id
 
 function Index() {
-  const [balance, setBalance] = useState<number>(INITIAL_BALANCE);
-  const [monthlyCost, setMonthlyCost] = useState<number>(INITIAL_MONTHLY_COST);
+  const store = useStore();
+  const { balance, unallocated, monthlyCost, reserves, transactions } = store;
   const [monthlyCostInput, setMonthlyCostInput] = useState<string>(
-    String(INITIAL_MONTHLY_COST),
+    String(monthlyCost),
   );
-  const [reserves, setReserves] = useState<Reserve[]>(INITIAL_RESERVES);
-  const [tx, setTx] = useState<{ mode: TxMode; reserveId: string } | null>(null);
+  const [tx, setTx] = useState<{ mode: TxMode; target: string } | null>(null);
   const [amount, setAmount] = useState<string>("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState<"days" | "amount">("amount");
+  const [newValue, setNewValue] = useState("");
 
   const runway = useMemo(() => computeRunway(balance, monthlyCost), [balance, monthlyCost]);
 
-  const openTx = (mode: TxMode) => {
+  // Unallocated trend: sum of yield inflows in last 30 days vs previous 30
+  const trend = useMemo(() => {
+    const now = Date.now();
+    const d = 24 * 60 * 60 * 1000;
+    let recent = 0;
+    let prior = 0;
+    for (const t of transactions) {
+      if (t.kind !== "yield") continue;
+      const age = now - new Date(t.date).getTime();
+      if (age <= 30 * d) recent += t.amount;
+      else if (age <= 60 * d) prior += t.amount;
+    }
+    const delta = recent - prior;
+    const pct = prior > 0 ? (delta / prior) * 100 : recent > 0 ? 100 : 0;
+    return { recent, delta, pct };
+  }, [transactions]);
+
+  const openTx = (mode: TxMode, target?: string) => {
     setAmount("");
-    setTx({ mode, reserveId: reserves[0]?.id ?? "" });
+    setTx({ mode, target: target ?? "unallocated" });
   };
 
   const submitTx = () => {
@@ -63,26 +83,36 @@ function Index() {
       toast.error("Enter an amount greater than zero.");
       return;
     }
-    const reserve = reserves.find((r) => r.id === tx.reserveId);
-    if (!reserve) return;
-
+    const isUnallocated = tx.target === "unallocated";
+    const reserve = isUnallocated ? null : reserves.find((r) => r.id === tx.target);
+    if (!isUnallocated && !reserve) return;
+    const label = isUnallocated ? "Unallocated" : reserve!.name;
     if (tx.mode === "deposit") {
-      setBalance((b) => b + value);
-      setReserves((rs) =>
-        rs.map((r) => (r.id === reserve.id ? { ...r, current: r.current + value } : r)),
-      );
-      toast.success(`Deposited ${formatUSD(value)} to ${reserve.name}`);
-    } else {
-      const max = Math.min(reserve.current, balance);
-      if (value > max) {
-        toast.error(`Only ${formatUSD(max)} available in ${reserve.name}.`);
+      if (isUnallocated) store.depositToUnallocated(value);
+      else store.depositToReserve(reserve!.id, value);
+      toast.success(`Deposited ${formatUSD(value)} to ${label}`);
+    } else if (tx.mode === "withdraw") {
+      const ok = isUnallocated
+        ? store.withdrawFromUnallocated(value)
+        : store.withdrawFromReserve(reserve!.id, value);
+      if (!ok) {
+        const max = isUnallocated ? unallocated : reserve!.current;
+        toast.error(`Only ${formatUSD(max)} available in ${label}.`);
         return;
       }
-      setBalance((b) => b - value);
-      setReserves((rs) =>
-        rs.map((r) => (r.id === reserve.id ? { ...r, current: r.current - value } : r)),
-      );
-      toast.success(`Withdrew ${formatUSD(value)} from ${reserve.name}`);
+      toast.success(`Withdrew ${formatUSD(value)} from ${label}`);
+    } else {
+      // allocate: from unallocated to a reserve
+      if (isUnallocated) {
+        toast.error("Choose a reserve to allocate to.");
+        return;
+      }
+      const ok = store.allocate(reserve!.id, value);
+      if (!ok) {
+        toast.error(`Only ${formatUSD(unallocated)} available to allocate.`);
+        return;
+      }
+      toast.success(`Allocated ${formatUSD(value)} to ${label}`);
     }
     setTx(null);
   };
@@ -94,9 +124,24 @@ function Index() {
       setMonthlyCostInput(String(monthlyCost));
       return;
     }
-    setMonthlyCost(v);
+    store.setMonthlyCost(v);
     toast.success("Runway recalibrated.");
   };
+
+  const submitCreate = () => {
+    const name = newName.trim();
+    const val = Number(newValue);
+    if (!name) return toast.error("Give the reserve a name.");
+    if (!Number.isFinite(val) || val <= 0) return toast.error("Target must be greater than zero.");
+    store.createReserve({ name, targetType: newType, targetValue: val });
+    toast.success(`Created reserve "${name}"`);
+    setNewName("");
+    setNewValue("");
+    setNewType("amount");
+    setCreateOpen(false);
+  };
+
+  const allocateTargets = reserves;
 
   return (
     <div className="min-h-screen bg-reserve-bg font-sans text-reserve-navy">
@@ -148,20 +193,70 @@ function Index() {
           </div>
         </section>
 
+        {/* Unallocated Balance */}
+        <section className="mb-8">
+          <div className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-reserve-slate">
+                  Unallocated Balance
+                </p>
+                <p className="mt-1 font-mono text-2xl font-semibold">{formatUSD(unallocated)}</p>
+                <p className="mt-1 text-[11px] text-reserve-slate">
+                  Yield &amp; deposits waiting to be assigned
+                </p>
+              </div>
+              <div
+                className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${
+                  trend.delta >= 0
+                    ? "bg-reserve-emerald/10 text-reserve-emerald"
+                    : "bg-destructive/10 text-destructive"
+                }`}
+              >
+                {trend.delta >= 0 ? (
+                  <TrendingUp className="size-3" />
+                ) : (
+                  <TrendingDown className="size-3" />
+                )}
+                {trend.delta >= 0 ? "+" : ""}
+                {trend.pct.toFixed(0)}%
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => openTx("allocate", reserves[0]?.id)}
+                disabled={reserves.length === 0 || unallocated <= 0}
+                className="rounded-xl bg-reserve-navy px-3 py-2.5 text-xs font-semibold text-white transition active:scale-95 disabled:opacity-40"
+              >
+                Allocate to Reserve
+              </button>
+              <button
+                onClick={() => openTx("withdraw", "unallocated")}
+                disabled={unallocated <= 0}
+                className="rounded-xl border border-reserve-navy/10 bg-white px-3 py-2.5 text-xs font-semibold text-reserve-navy transition active:scale-95 disabled:opacity-40"
+              >
+                Withdraw
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Quick Actions */}
         <div className="mb-10 grid grid-cols-2 gap-3">
           <button
-            onClick={() => openTx("deposit")}
+            onClick={() => openTx("deposit", "unallocated")}
             className="flex min-h-[56px] flex-col items-center justify-center rounded-2xl border border-reserve-navy/5 bg-white py-4 shadow-sm transition-transform active:scale-95"
           >
-            <span className="mb-1 text-sm font-semibold">Deposit</span>
+            <ArrowDownRight className="mb-1 size-4 text-reserve-emerald" />
+            <span className="text-sm font-semibold">Deposit</span>
             <span className="text-[10px] uppercase text-reserve-slate">Add to safety</span>
           </button>
           <button
-            onClick={() => openTx("withdraw")}
+            onClick={() => openTx("withdraw", reserves[0]?.id ?? "unallocated")}
             className="flex min-h-[56px] flex-col items-center justify-center rounded-2xl border border-reserve-navy/5 bg-white py-4 shadow-sm transition-transform active:scale-95"
           >
-            <span className="mb-1 text-sm font-semibold">Withdraw</span>
+            <ArrowUpRight className="mb-1 size-4 text-reserve-navy" />
+            <span className="text-sm font-semibold">Withdraw</span>
             <span className="text-[10px] uppercase text-reserve-slate">Access funds</span>
           </button>
         </div>
@@ -170,7 +265,12 @@ function Index() {
         <section className="space-y-4">
           <div className="flex items-end justify-between">
             <h3 className="text-sm font-semibold">Active Reserves</h3>
-            <span className="text-xs font-medium text-reserve-emerald">{reserves.length} active</span>
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="inline-flex items-center gap-1 rounded-full bg-reserve-navy/5 px-3 py-1 text-[11px] font-semibold text-reserve-navy active:scale-95"
+            >
+              <Plus className="size-3" /> New reserve
+            </button>
           </div>
 
           {reserves.map((r) => {
@@ -186,9 +286,11 @@ function Index() {
                 ? `${((r.current / monthlyCost) * 30).toFixed(0)} days ready`
                 : `${formatUSD(Math.max(0, r.targetValue - r.current))} left`;
             return (
-              <div
+              <Link
                 key={r.id}
-                className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm"
+                to="/reserves/$id"
+                params={{ id: r.id }}
+                className="block rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm transition active:scale-[0.99]"
               >
                 <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                   <div className="min-w-0">
@@ -219,9 +321,14 @@ function Index() {
                     {complete ? "Fully Reserved" : rightMeta}
                   </span>
                 </div>
-              </div>
+              </Link>
             );
           })}
+          {reserves.length === 0 && (
+            <p className="rounded-2xl border border-dashed border-reserve-navy/10 bg-white/50 p-6 text-center text-xs text-reserve-slate">
+              No reserves yet. Create one to start allocating.
+            </p>
+          )}
         </section>
 
         {/* Monthly Cost */}
@@ -257,25 +364,6 @@ function Index() {
         </section>
       </div>
 
-      {/* Bottom Nav */}
-      <nav
-        className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-16 max-w-md items-center justify-around rounded-2xl border border-reserve-navy/5 bg-white/85 px-4 shadow-xl backdrop-blur-md"
-        style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
-      >
-        <div className="flex flex-col items-center opacity-100">
-          <div className="mb-1 size-1.5 rounded-full bg-reserve-navy" />
-          <span className="text-[10px] font-semibold">Vault</span>
-        </div>
-        <div className="flex flex-col items-center opacity-40">
-          <div className="mb-1 size-1.5 rounded-full bg-transparent" />
-          <span className="text-[10px] font-semibold">Analytics</span>
-        </div>
-        <div className="flex flex-col items-center opacity-40">
-          <div className="mb-1 size-1.5 rounded-full bg-transparent" />
-          <span className="text-[10px] font-semibold">History</span>
-        </div>
-      </nav>
-
       {/* Tx Dialog */}
       <Dialog open={!!tx} onOpenChange={(o) => !o && setTx(null)}>
         <DialogContent className="max-w-sm rounded-3xl">
@@ -285,14 +373,17 @@ function Index() {
           <div className="space-y-4">
             <div>
               <Label className="text-[11px] uppercase tracking-wider text-reserve-slate">
-                Reserve
+                {tx?.mode === "allocate" ? "To Reserve" : "Source"}
               </Label>
               <select
-                value={tx?.reserveId ?? ""}
-                onChange={(e) => tx && setTx({ ...tx, reserveId: e.target.value })}
+                value={tx?.target ?? ""}
+                onChange={(e) => tx && setTx({ ...tx, target: e.target.value })}
                 className="mt-2 w-full rounded-lg border border-reserve-navy/10 bg-white p-3 text-sm"
               >
-                {reserves.map((r) => (
+                {tx?.mode !== "allocate" && (
+                  <option value="unallocated">Unallocated — {formatUSD(unallocated)}</option>
+                )}
+                {(tx?.mode === "allocate" ? allocateTargets : reserves).map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name} — {formatUSD(r.current)}
                   </option>
@@ -325,6 +416,82 @@ function Index() {
               className="bg-reserve-navy text-white hover:bg-reserve-navy/90"
             >
               Confirm {tx?.mode}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Reserve Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>New Reserve</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-[11px] uppercase tracking-wider text-reserve-slate">Name</Label>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Home Deposit"
+                className="mt-2"
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] uppercase tracking-wider text-reserve-slate">
+                Target Type
+              </Label>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setNewType("days")}
+                  className={`rounded-lg border p-3 text-xs font-medium transition ${
+                    newType === "days"
+                      ? "border-reserve-navy bg-reserve-navy text-white"
+                      : "border-reserve-navy/10 bg-white text-reserve-navy"
+                  }`}
+                >
+                  Sustain X days
+                </button>
+                <button
+                  onClick={() => setNewType("amount")}
+                  className={`rounded-lg border p-3 text-xs font-medium transition ${
+                    newType === "amount"
+                      ? "border-reserve-navy bg-reserve-navy text-white"
+                      : "border-reserve-navy/10 bg-white text-reserve-navy"
+                  }`}
+                >
+                  Reach $Y
+                </button>
+              </div>
+            </div>
+            <div>
+              <Label className="text-[11px] uppercase tracking-wider text-reserve-slate">
+                {newType === "days" ? "Days to sustain" : "Target amount ($)"}
+              </Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+                placeholder={newType === "days" ? "90" : "5000"}
+                className="mt-2 font-mono text-lg"
+              />
+              <p className="mt-2 text-[10px] text-reserve-slate">
+                Starts at $0. Fund via deposit or allocation from unallocated balance.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="mt-2 grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitCreate}
+              className="bg-reserve-navy text-white hover:bg-reserve-navy/90"
+            >
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>
