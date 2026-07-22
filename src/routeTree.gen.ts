@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
 
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -32,35 +38,46 @@ const ReservesIdRoute = ReservesIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/history': typeof HistoryRoute
   '/reserves/$id': typeof ReservesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/history': typeof HistoryRoute
   '/reserves/$id': typeof ReservesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/history': typeof HistoryRoute
   '/reserves/$id': typeof ReservesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analytics' | '/reserves/$id'
+  fullPaths: '/' | '/analytics' | '/history' | '/reserves/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/reserves/$id'
-  id: '__root__' | '/' | '/analytics' | '/reserves/$id'
+  to: '/' | '/analytics' | '/history' | '/reserves/$id'
+  id: '__root__' | '/' | '/analytics' | '/history' | '/reserves/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  HistoryRoute: typeof HistoryRoute
   ReservesIdRoute: typeof ReservesIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics': {
       id: '/analytics'
       path: '/analytics'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  HistoryRoute: HistoryRoute,
   ReservesIdRoute: ReservesIdRoute,
 }
 export const routeTree = rootRouteImport
