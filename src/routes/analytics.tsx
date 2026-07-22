@@ -57,14 +57,14 @@ function buildSeries(store: ReturnType<typeof useStore>) {
   return series.reverse();
 }
 
-function Sparkline({
+function Sparkline<T>({
   series,
   accessor,
   color,
   fill,
 }: {
-  series: { t: number; total: number; allocated: number; unallocated: number }[];
-  accessor: (p: (typeof series)[number]) => number;
+  series: T[];
+  accessor: (p: T) => number;
   color: string;
   fill?: string;
 }) {
