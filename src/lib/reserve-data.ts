@@ -39,7 +39,15 @@ export const INITIAL_BALANCE =
   INITIAL_UNALLOCATED +
   INITIAL_RESERVES.reduce((sum, r) => sum + r.current, 0);
 
-export type TxKind = "deposit" | "withdraw" | "allocate" | "yield";
+export type TxKind =
+  | "deposit"
+  | "withdraw"
+  | "allocate"
+  | "yield"
+  | "send"
+  | "receive"
+  | "wallet_out"
+  | "wallet_in";
 
 export type Transaction = {
   id: string;
@@ -62,6 +70,18 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
   { id: "t4", kind: "allocate", amount: 7250, from: "unallocated", to: "sabbatical", reserveName: "Winter Sabbatical", date: new Date(now - 14 * day).toISOString() },
   { id: "t5", kind: "allocate", amount: 5000, from: "unallocated", to: "health", reserveName: "Health Buffer", date: new Date(now - 9 * day).toISOString() },
   { id: "t6", kind: "yield", amount: 180, to: "unallocated", date: new Date(now - 3 * day).toISOString(), note: "Monthly yield" },
+];
+
+export const INITIAL_WALLET = 2400;
+
+export const INITIAL_WALLET_TRANSACTIONS: Transaction[] = [
+  { id: "w1", kind: "receive", amount: 1800, to: "wallet", from: "payroll", date: new Date(now - 22 * day).toISOString(), note: "Payroll · Acme Co" },
+  { id: "w2", kind: "send", amount: 320, from: "wallet", to: "landlord", date: new Date(now - 20 * day).toISOString(), note: "Rent share" },
+  { id: "w3", kind: "wallet_out", amount: 500, from: "wallet", to: "emergency", reserveName: "Emergency Survival", date: new Date(now - 17 * day).toISOString(), note: "Top-up" },
+  { id: "w4", kind: "send", amount: 84, from: "wallet", to: "groceries", date: new Date(now - 12 * day).toISOString(), note: "Groceries" },
+  { id: "w5", kind: "receive", amount: 240, to: "wallet", from: "refund", date: new Date(now - 8 * day).toISOString(), note: "Refund" },
+  { id: "w6", kind: "wallet_in", amount: 150, from: "sabbatical", to: "wallet", reserveName: "Winter Sabbatical", date: new Date(now - 5 * day).toISOString(), note: "Reclaim" },
+  { id: "w7", kind: "send", amount: 46, from: "wallet", to: "coffee", date: new Date(now - 2 * day).toISOString(), note: "Cafe" },
 ];
 
 export function targetAmount(r: Reserve, monthlyCost: number): number {

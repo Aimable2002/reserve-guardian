@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useStore } from "@/lib/store";
-import { formatUSD, reserveProgress, computeRunway } from "@/lib/reserve-data";
+import { formatUSD, reserveProgress, computeRunway, type Transaction } from "@/lib/reserve-data";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/analytics")({
   head: () => ({
@@ -102,6 +103,8 @@ function AnalyticsPage() {
     .map((r) => ({ r, pct: reserveProgress(r, store.monthlyCost) }))
     .sort((a, b) => b.pct - a.pct);
 
+  const wallet = useMemo(() => buildWalletSeries(store), [store]);
+
   return (
     <div className="min-h-screen bg-reserve-bg font-sans text-reserve-navy">
       <div
@@ -115,6 +118,17 @@ function AnalyticsPage() {
           <p className="text-lg font-medium">Trends & Progress</p>
         </header>
 
+        <Tabs defaultValue="reserve" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 rounded-full bg-reserve-navy/5 p-1">
+            <TabsTrigger value="reserve" className="rounded-full text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Reserve
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="rounded-full text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Wallet
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="reserve" className="mt-5 space-y-6">
         {/* Balance trend */}
         <section className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
           <div className="mb-1 flex items-baseline justify-between">
@@ -159,7 +173,7 @@ function AnalyticsPage() {
         </section>
 
         {/* Runway trend */}
-        <section className="mt-6 rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
           <div className="mb-1 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold">Runway</h2>
             <span className="font-mono text-sm font-semibold">
@@ -180,7 +194,7 @@ function AnalyticsPage() {
         </section>
 
         {/* Per-reserve comparison */}
-        <section className="mt-6">
+        <section>
           <h2 className="mb-3 text-sm font-semibold">Reserve Progress</h2>
           <div className="space-y-3">
             {ranked.map(({ r, pct }) => (
@@ -212,7 +226,148 @@ function AnalyticsPage() {
             )}
           </div>
         </section>
+          </TabsContent>
+
+          <TabsContent value="wallet" className="mt-5 space-y-6">
+            <WalletAnalytics wallet={wallet} balance={store.wallet} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
+  );
+}
+
+function buildWalletSeries(store: ReturnType<typeof useStore>) {
+  const points = 12;
+  const stepMs = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const walletTxs = store.transactions
+    .filter((t) => (["send", "receive", "wallet_in", "wallet_out"] as Transaction["kind"][]).includes(t.kind))
+    .slice()
+    .sort((a, b) => +new Date(a.date) - +new Date(b.date));
+
+  const buckets = new Array(points).fill(0).map((_, i) => ({
+    t: now - (points - 1 - i) * stepMs,
+    income: 0,
+    spend: 0,
+    net: 0,
+  }));
+
+  for (const t of walletTxs) {
+    const ts = +new Date(t.date);
+    const diffWeeks = Math.floor((now - ts) / stepMs);
+    const idx = points - 1 - diffWeeks;
+    if (idx < 0 || idx >= points) continue;
+    const isIn = t.kind === "receive" || t.kind === "wallet_in";
+    if (isIn) buckets[idx].income += t.amount;
+    else buckets[idx].spend += t.amount;
+  }
+  let cum = 0;
+  for (const b of buckets) {
+    cum += b.income - b.spend;
+    b.net = cum;
+  }
+
+  // Category breakdown by note keyword
+  const categories: Record<string, number> = {};
+  for (const t of walletTxs) {
+    if (t.kind !== "send" && t.kind !== "wallet_out") continue;
+    const key = (t.kind === "wallet_out" ? "Reserves" : (t.note ?? t.to ?? "Other")).toString();
+    categories[key] = (categories[key] ?? 0) + t.amount;
+  }
+  const breakdown = Object.entries(categories)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+
+  return { buckets, breakdown };
+}
+
+function WalletAnalytics({
+  wallet,
+  balance,
+}: {
+  wallet: ReturnType<typeof buildWalletSeries>;
+  balance: number;
+}) {
+  const totalSpend = wallet.breakdown.reduce((s, b) => s + b.value, 0);
+  return (
+    <>
+      <section className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
+        <div className="mb-1 flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold">Wallet Balance</h2>
+          <span className="font-mono text-sm font-semibold">{formatUSD(balance)}</span>
+        </div>
+        <p className="text-[11px] text-reserve-slate">Net cash flow · last 12 weeks</p>
+        <div className="mt-3">
+          <Sparkline
+            series={wallet.buckets}
+            accessor={(p) => p.net}
+            color="oklch(0.208 0.042 265.755)"
+            fill="oklch(0.208 0.042 265.755 / 0.08)"
+          />
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-reserve-emerald/10 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-reserve-slate">Income</p>
+            <p className="mt-1 font-mono text-sm font-semibold">
+              {formatUSD(wallet.buckets.reduce((s, b) => s + b.income, 0))}
+            </p>
+            <div className="mt-1">
+              <Sparkline
+                series={wallet.buckets}
+                accessor={(p) => p.income}
+                color="oklch(0.62 0.14 158)"
+              />
+            </div>
+          </div>
+          <div className="rounded-xl bg-destructive/10 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-reserve-slate">Spending</p>
+            <p className="mt-1 font-mono text-sm font-semibold">
+              {formatUSD(wallet.buckets.reduce((s, b) => s + b.spend, 0))}
+            </p>
+            <div className="mt-1">
+              <Sparkline
+                series={wallet.buckets}
+                accessor={(p) => p.spend}
+                color="oklch(0.577 0.245 27.325)"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">Spending Breakdown</h2>
+        <p className="text-[11px] text-reserve-slate">Where wallet outflows went</p>
+        {wallet.breakdown.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-reserve-navy/10 bg-white/60 p-4 text-center text-xs text-reserve-slate">
+            No wallet spending yet.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {wallet.breakdown.map((b) => {
+              const pct = totalSpend > 0 ? (b.value / totalSpend) * 100 : 0;
+              return (
+                <li key={b.label}>
+                  <div className="mb-1 flex items-baseline justify-between gap-2">
+                    <span className="truncate text-xs font-medium capitalize">{b.label}</span>
+                    <span className="shrink-0 font-mono text-[11px] font-semibold">
+                      {formatUSD(b.value)}{" "}
+                      <span className="text-reserve-slate">· {pct.toFixed(0)}%</span>
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-reserve-bg">
+                    <div
+                      className="h-full rounded-full bg-reserve-navy/70"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </>
   );
 }

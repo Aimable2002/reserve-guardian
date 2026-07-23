@@ -5,6 +5,8 @@ import {
   INITIAL_RESERVES,
   INITIAL_TRANSACTIONS,
   INITIAL_UNALLOCATED,
+  INITIAL_WALLET,
+  INITIAL_WALLET_TRANSACTIONS,
   type Reserve,
   type Transaction,
 } from "./reserve-data";
@@ -13,6 +15,7 @@ type State = {
   balance: number;
   unallocated: number;
   monthlyCost: number;
+  wallet: number;
   reserves: Reserve[];
   transactions: Transaction[];
 };
@@ -27,6 +30,10 @@ type Ctx = State & {
   createReserve: (r: Omit<Reserve, "id" | "current">) => string;
   updateReserve: (id: string, patch: Partial<Pick<Reserve, "name" | "targetType" | "targetValue">>) => void;
   deleteReserve: (id: string) => boolean;
+  walletSend: (recipient: string, amount: number, note?: string) => boolean;
+  walletReceive: (sender: string, amount: number, note?: string) => void;
+  walletToReserve: (reserveId: string, amount: number) => boolean;
+  reserveToWallet: (reserveId: string, amount: number) => boolean;
 };
 
 const StoreContext = createContext<Ctx | null>(null);
@@ -40,7 +47,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [unallocated, setUnallocated] = useState(INITIAL_UNALLOCATED);
   const [monthlyCost, setMonthlyCost] = useState(INITIAL_MONTHLY_COST);
   const [reserves, setReserves] = useState<Reserve[]>(INITIAL_RESERVES);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [wallet, setWallet] = useState(INITIAL_WALLET);
+  const [transactions, setTransactions] = useState<Transaction[]>(
+    [...INITIAL_TRANSACTIONS, ...INITIAL_WALLET_TRANSACTIONS].sort(
+      (a, b) => +new Date(b.date) - +new Date(a.date),
+    ),
+  );
 
   const pushTx = (tx: Omit<Transaction, "id" | "date"> & { date?: string }) =>
     setTransactions((prev) => [
@@ -53,6 +65,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       balance,
       unallocated,
       monthlyCost,
+      wallet,
       reserves,
       transactions,
       setMonthlyCost,
@@ -105,8 +118,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setReserves((rs) => rs.filter((x) => x.id !== id));
         return true;
       },
+      walletSend: (recipient, amount, note) => {
+        if (amount <= 0 || amount > wallet) return false;
+        setWallet((w) => w - amount);
+        pushTx({ kind: "send", amount, from: "wallet", to: recipient || "recipient", note });
+        return true;
+      },
+      walletReceive: (sender, amount, note) => {
+        if (amount <= 0) return;
+        setWallet((w) => w + amount);
+        pushTx({ kind: "receive", amount, from: sender || "sender", to: "wallet", note });
+      },
+      walletToReserve: (reserveId, amount) => {
+        const r = reserves.find((x) => x.id === reserveId);
+        if (!r || amount <= 0 || amount > wallet) return false;
+        setWallet((w) => w - amount);
+        setBalance((b) => b + amount);
+        setReserves((rs) => rs.map((x) => (x.id === reserveId ? { ...x, current: x.current + amount } : x)));
+        pushTx({ kind: "wallet_out", amount, from: "wallet", to: reserveId, reserveName: r.name });
+        return true;
+      },
+      reserveToWallet: (reserveId, amount) => {
+        const r = reserves.find((x) => x.id === reserveId);
+        if (!r || amount <= 0 || amount > r.current) return false;
+        setWallet((w) => w + amount);
+        setBalance((b) => b - amount);
+        setReserves((rs) => rs.map((x) => (x.id === reserveId ? { ...x, current: x.current - amount } : x)));
+        pushTx({ kind: "wallet_in", amount, from: reserveId, to: "wallet", reserveName: r.name });
+        return true;
+      },
     }),
-    [balance, unallocated, monthlyCost, reserves, transactions],
+    [balance, unallocated, monthlyCost, wallet, reserves, transactions],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
