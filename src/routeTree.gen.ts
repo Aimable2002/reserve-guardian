@@ -15,6 +15,7 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WalletSendRouteImport } from './routes/wallet.send'
+import { Route as WalletReceiveRouteImport } from './routes/wallet.receive'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
 
 const WalletRoute = WalletRouteImport.update({
@@ -47,6 +48,11 @@ const WalletSendRoute = WalletSendRouteImport.update({
   path: '/send',
   getParentRoute: () => WalletRoute,
 } as any)
+const WalletReceiveRoute = WalletReceiveRouteImport.update({
+  id: '/receive',
+  path: '/receive',
+  getParentRoute: () => WalletRoute,
+} as any)
 const ReservesIdRoute = ReservesIdRouteImport.update({
   id: '/reserves/$id',
   path: '/reserves/$id',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/receive'
     | '/wallet/send'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/receive'
     | '/wallet/send'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/receive'
     | '/wallet/send'
   fileRoutesById: FileRoutesById
 }
@@ -164,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletSendRouteImport
       parentRoute: typeof WalletRoute
     }
+    '/wallet/receive': {
+      id: '/wallet/receive'
+      path: '/receive'
+      fullPath: '/wallet/receive'
+      preLoaderRoute: typeof WalletReceiveRouteImport
+      parentRoute: typeof WalletRoute
+    }
     '/reserves/$id': {
       id: '/reserves/$id'
       path: '/reserves/$id'
@@ -175,10 +194,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface WalletRouteChildren {
+  WalletReceiveRoute: typeof WalletReceiveRoute
   WalletSendRoute: typeof WalletSendRoute
 }
 
 const WalletRouteChildren: WalletRouteChildren = {
+  WalletReceiveRoute: WalletReceiveRoute,
   WalletSendRoute: WalletSendRoute,
 }
 
