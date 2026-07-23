@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as LendingRouteImport } from './routes/lending'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
 
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LendingRoute = LendingRouteImport.update({
   id: '/lending',
   path: '/lending',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/wallet': typeof WalletRoute
   '/reserves/$id': typeof ReservesIdRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/wallet': typeof WalletRoute
   '/reserves/$id': typeof ReservesIdRoute
 }
 export interface FileRoutesById {
@@ -61,19 +69,27 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/wallet': typeof WalletRoute
   '/reserves/$id': typeof ReservesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analytics' | '/history' | '/lending' | '/reserves/$id'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/history'
+    | '/lending'
+    | '/wallet'
+    | '/reserves/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/history' | '/lending' | '/reserves/$id'
+  to: '/' | '/analytics' | '/history' | '/lending' | '/wallet' | '/reserves/$id'
   id:
     | '__root__'
     | '/'
     | '/analytics'
     | '/history'
     | '/lending'
+    | '/wallet'
     | '/reserves/$id'
   fileRoutesById: FileRoutesById
 }
@@ -82,11 +98,19 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   HistoryRoute: typeof HistoryRoute
   LendingRoute: typeof LendingRoute
+  WalletRoute: typeof WalletRoute
   ReservesIdRoute: typeof ReservesIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lending': {
       id: '/lending'
       path: '/lending'
@@ -130,6 +154,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   HistoryRoute: HistoryRoute,
   LendingRoute: LendingRoute,
+  WalletRoute: WalletRoute,
   ReservesIdRoute: ReservesIdRoute,
 }
 export const routeTree = rootRouteImport
