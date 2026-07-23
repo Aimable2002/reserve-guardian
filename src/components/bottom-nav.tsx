@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Vault, BarChart3, History, HandCoins } from "lucide-react";
+import { Vault, BarChart3, History, HandCoins, Wallet } from "lucide-react";
 
 const items = [
   { to: "/", label: "Vault", Icon: Vault },
+  { to: "/wallet", label: "Wallet", Icon: Wallet },
   { to: "/analytics", label: "Analytics", Icon: BarChart3 },
   { to: "/history", label: "History", Icon: History },
   { to: "/lending", label: "Lending", Icon: HandCoins },
@@ -12,7 +13,7 @@ export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
     <nav
-      className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-16 max-w-md items-center justify-around rounded-2xl border border-reserve-navy/5 bg-white/85 px-2 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-reserve-navy/85"
+      className="fixed inset-x-3 bottom-4 z-40 mx-auto flex h-16 max-w-md items-center justify-around rounded-2xl border border-reserve-navy/5 bg-white/85 px-1 shadow-xl backdrop-blur-md dark:border-white/10 dark:bg-reserve-navy/85"
       style={{ bottom: "calc(1rem + env(safe-area-inset-bottom))" }}
     >
       {items.map(({ to, label, Icon }) => {
@@ -21,7 +22,7 @@ export function BottomNav() {
           <Link
             key={to}
             to={to}
-            className={`flex min-w-[56px] flex-col items-center gap-0.5 rounded-xl px-2 py-1 transition ${
+            className={`flex min-w-[48px] flex-col items-center gap-0.5 rounded-xl px-1.5 py-1 transition ${
               active ? "text-reserve-navy dark:text-white" : "text-reserve-slate opacity-60"
             }`}
           >
