@@ -14,6 +14,7 @@ import { Route as LendingRouteImport } from './routes/lending'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WalletSendRouteImport } from './routes/wallet.send'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
 
 const WalletRoute = WalletRouteImport.update({
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WalletSendRoute = WalletSendRouteImport.update({
+  id: '/send',
+  path: '/send',
+  getParentRoute: () => WalletRoute,
+} as any)
 const ReservesIdRoute = ReservesIdRouteImport.update({
   id: '/reserves/$id',
   path: '/reserves/$id',
@@ -52,16 +58,18 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
-  '/wallet': typeof WalletRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/send': typeof WalletSendRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
-  '/wallet': typeof WalletRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/send': typeof WalletSendRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,8 +77,9 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
-  '/wallet': typeof WalletRoute
+  '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/send': typeof WalletSendRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,8 +90,16 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/send'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/history' | '/lending' | '/wallet' | '/reserves/$id'
+  to:
+    | '/'
+    | '/analytics'
+    | '/history'
+    | '/lending'
+    | '/wallet'
+    | '/reserves/$id'
+    | '/wallet/send'
   id:
     | '__root__'
     | '/'
@@ -91,6 +108,7 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/send'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -98,7 +116,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   HistoryRoute: typeof HistoryRoute
   LendingRoute: typeof LendingRoute
-  WalletRoute: typeof WalletRoute
+  WalletRoute: typeof WalletRouteWithChildren
   ReservesIdRoute: typeof ReservesIdRoute
 }
 
@@ -139,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wallet/send': {
+      id: '/wallet/send'
+      path: '/send'
+      fullPath: '/wallet/send'
+      preLoaderRoute: typeof WalletSendRouteImport
+      parentRoute: typeof WalletRoute
+    }
     '/reserves/$id': {
       id: '/reserves/$id'
       path: '/reserves/$id'
@@ -149,12 +174,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface WalletRouteChildren {
+  WalletSendRoute: typeof WalletSendRoute
+}
+
+const WalletRouteChildren: WalletRouteChildren = {
+  WalletSendRoute: WalletSendRoute,
+}
+
+const WalletRouteWithChildren =
+  WalletRoute._addFileChildren(WalletRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   HistoryRoute: HistoryRoute,
   LendingRoute: LendingRoute,
-  WalletRoute: WalletRoute,
+  WalletRoute: WalletRouteWithChildren,
   ReservesIdRoute: ReservesIdRoute,
 }
 export const routeTree = rootRouteImport
