@@ -1,8 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { ArrowDownRight, ArrowUpRight, ArrowRightLeft, Sparkles } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ArrowRightLeft,
+  Sparkles,
+  Send,
+  QrCode,
+} from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatUSD, type Transaction } from "@/lib/reserve-data";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/history")({
   head: () => ({
@@ -38,6 +46,13 @@ function iconFor(kind: Transaction["kind"]) {
       return { Icon: ArrowRightLeft, cls: "bg-reserve-navy/10 text-reserve-navy" };
     case "yield":
       return { Icon: Sparkles, cls: "bg-amber-500/10 text-amber-600" };
+    case "send":
+      return { Icon: Send, cls: "bg-destructive/10 text-destructive" };
+    case "receive":
+      return { Icon: QrCode, cls: "bg-reserve-emerald/10 text-reserve-emerald" };
+    case "wallet_out":
+    case "wallet_in":
+      return { Icon: ArrowRightLeft, cls: "bg-reserve-navy/10 text-reserve-navy" };
   }
 }
 
@@ -53,6 +68,14 @@ function labelFor(t: Transaction, reserveNames: Record<string, string>) {
       return `${fromName} → ${toName}`;
     case "yield":
       return `Yield → ${toName}`;
+    case "send":
+      return `Sent → ${t.to ?? "recipient"}`;
+    case "receive":
+      return `Received ← ${t.from ?? "sender"}`;
+    case "wallet_out":
+      return `Wallet → ${t.reserveName ?? toName}`;
+    case "wallet_in":
+      return `${t.reserveName ?? fromName} → Wallet`;
   }
 }
 
@@ -62,7 +85,22 @@ function HistoryPage() {
     () => Object.fromEntries(store.reserves.map((r) => [r.id, r.name])),
     [store.reserves],
   );
-  const groups = useMemo(() => groupByDay(store.transactions), [store.transactions]);
+  const reserveTxs = useMemo(
+    () =>
+      store.transactions.filter((t) =>
+        (["deposit", "withdraw", "allocate", "yield"] as Transaction["kind"][]).includes(t.kind),
+      ),
+    [store.transactions],
+  );
+  const walletTxs = useMemo(
+    () =>
+      store.transactions.filter((t) =>
+        (["send", "receive", "wallet_in", "wallet_out"] as Transaction["kind"][]).includes(t.kind),
+      ),
+    [store.transactions],
+  );
+  const reserveGroups = useMemo(() => groupByDay(reserveTxs), [reserveTxs]);
+  const walletGroups = useMemo(() => groupByDay(walletTxs), [walletTxs]);
 
   return (
     <div className="min-h-screen bg-reserve-bg font-sans text-reserve-navy">
@@ -77,13 +115,46 @@ function HistoryPage() {
           <p className="text-lg font-medium">All Transactions</p>
         </header>
 
-        {groups.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-reserve-navy/10 bg-white/60 p-8 text-center text-xs text-reserve-slate">
-            No transactions yet.
-          </p>
-        )}
+        <Tabs defaultValue="reserve" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 rounded-full bg-reserve-navy/5 p-1">
+            <TabsTrigger value="reserve" className="rounded-full text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Reserve
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="rounded-full text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              Wallet
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="space-y-6">
+          <TabsContent value="reserve" className="mt-5">
+            <Ledger groups={reserveGroups} reserveNames={reserveNames} emptyLabel="No reserve activity yet." />
+          </TabsContent>
+          <TabsContent value="wallet" className="mt-5">
+            <Ledger groups={walletGroups} reserveNames={reserveNames} emptyLabel="No wallet activity yet." />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
+
+function Ledger({
+  groups,
+  reserveNames,
+  emptyLabel,
+}: {
+  groups: [string, Transaction[]][];
+  reserveNames: Record<string, string>;
+  emptyLabel: string;
+}) {
+  if (groups.length === 0) {
+    return (
+      <p className="rounded-2xl border border-dashed border-reserve-navy/10 bg-white/60 p-8 text-center text-xs text-reserve-slate">
+        {emptyLabel}
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-6">
           {groups.map(([day, items]) => (
             <section key={day}>
               <h2 className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-reserve-slate">
@@ -95,14 +166,22 @@ function HistoryPage() {
               </h2>
               <div className="overflow-hidden rounded-2xl border border-reserve-navy/5 bg-white shadow-sm">
                 {items.map((t, i) => {
-                  const { Icon, cls } = iconFor(t.kind);
-                  const inflow = t.kind === "deposit" || t.kind === "allocate" || t.kind === "yield";
+                  const meta = iconFor(t.kind);
+                  if (!meta) return null;
+                  const { Icon, cls } = meta;
+                  const inflow =
+                    t.kind === "deposit" ||
+                    t.kind === "allocate" ||
+                    t.kind === "yield" ||
+                    t.kind === "receive" ||
+                    t.kind === "wallet_in";
                   const reserveLink =
                     t.to && t.to !== "unallocated"
                       ? t.to
                       : t.from && t.from !== "unallocated"
                         ? t.from
                         : null;
+                  const isReserveId = reserveLink ? reserveNames[reserveLink] != null : false;
                   const content = (
                     <div
                       className={`flex items-center justify-between gap-3 p-4 ${
@@ -138,7 +217,7 @@ function HistoryPage() {
                       </span>
                     </div>
                   );
-                  return reserveLink ? (
+                  return reserveLink && isReserveId ? (
                     <Link key={t.id} to="/reserves/$id" params={{ id: reserveLink }} className="block active:bg-reserve-bg">
                       {content}
                     </Link>
@@ -149,8 +228,6 @@ function HistoryPage() {
               </div>
             </section>
           ))}
-        </div>
-      </div>
     </div>
   );
 }
