@@ -14,8 +14,17 @@ export default defineConfig({
       workbox: {
         globDirectory: ".output/public",
         globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
-        globIgnores: ["**/node_modules/**/*"], // default anyway
-      }
+        // Optional: fallback runtime cache rule so Workbox always has a valid config
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.destination === "document",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "html-cache",
+            },
+          },
+        ],
+      },
     }),
   ],
 });
