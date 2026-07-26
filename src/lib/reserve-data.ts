@@ -1,43 +1,17 @@
 export type ReserveTargetType = "days" | "amount";
 
+export const DEFAULT_CURRENCY = "NGN";
+export const DEFAULT_MONTHLY_COST = 300000;
+
 export type Reserve = {
   id: string;
   name: string;
   targetType: ReserveTargetType;
-  targetValue: number; // days or dollars
-  current: number; // dollars allocated
+  targetValue: number; // days or currency units
+  current: number; // balance from the reserve_balance RPC
+  currency: string;
+  archived?: boolean;
 };
-
-export const INITIAL_MONTHLY_COST = 3000;
-export const INITIAL_UNALLOCATED = 4200;
-
-export const INITIAL_RESERVES: Reserve[] = [
-  {
-    id: "emergency",
-    name: "Emergency Survival",
-    targetType: "days",
-    targetValue: 365,
-    current: 30600,
-  },
-  {
-    id: "sabbatical",
-    name: "Winter Sabbatical",
-    targetType: "amount",
-    targetValue: 10000,
-    current: 7250,
-  },
-  {
-    id: "health",
-    name: "Health Buffer",
-    targetType: "days",
-    targetValue: 180,
-    current: 5000,
-  },
-];
-
-export const INITIAL_BALANCE =
-  INITIAL_UNALLOCATED +
-  INITIAL_RESERVES.reduce((sum, r) => sum + r.current, 0);
 
 export type TxKind =
   | "deposit"
@@ -59,30 +33,92 @@ export type Transaction = {
   reserveName?: string;
   date: string; // ISO
   note?: string;
+  currency: string;
+  status: string;
+  reference?: string;
 };
 
-const now = Date.now();
-const day = 24 * 60 * 60 * 1000;
-export const INITIAL_TRANSACTIONS: Transaction[] = [
-  { id: "t1", kind: "deposit", amount: 5000, to: "unallocated", date: new Date(now - 30 * day).toISOString(), note: "Initial funding" },
-  { id: "t2", kind: "allocate", amount: 30600, from: "unallocated", to: "emergency", reserveName: "Emergency Survival", date: new Date(now - 25 * day).toISOString() },
-  { id: "t3", kind: "yield", amount: 220, to: "unallocated", date: new Date(now - 18 * day).toISOString(), note: "Monthly yield" },
-  { id: "t4", kind: "allocate", amount: 7250, from: "unallocated", to: "sabbatical", reserveName: "Winter Sabbatical", date: new Date(now - 14 * day).toISOString() },
-  { id: "t5", kind: "allocate", amount: 5000, from: "unallocated", to: "health", reserveName: "Health Buffer", date: new Date(now - 9 * day).toISOString() },
-  { id: "t6", kind: "yield", amount: 180, to: "unallocated", date: new Date(now - 3 * day).toISOString(), note: "Monthly yield" },
-];
+/** A raw row from the `ledger_entries` table. */
+export type LedgerEntry = {
+  id: string;
+  user_id: string;
+  account_type: "wallet" | "reserve" | string;
+  reserve_id: string | null;
+  entry_kind: string;
+  amount: number | string;
+  currency: string | null;
+  status: string;
+  reference: string | null;
+  provider: string | null;
+  provider_tx_id: string | null;
+  counterparty: string | null;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+};
 
-export const INITIAL_WALLET = 2400;
+/** A raw row from the `reserves` table. */
+export type ReserveRow = {
+  id: string;
+  name: string;
+  target_type: string | null;
+  target_value: number | string | null;
+  currency: string | null;
+  archived: boolean | null;
+  created_at: string;
+};
 
-export const INITIAL_WALLET_TRANSACTIONS: Transaction[] = [
-  { id: "w1", kind: "receive", amount: 1800, to: "wallet", from: "payroll", date: new Date(now - 22 * day).toISOString(), note: "Payroll · Acme Co" },
-  { id: "w2", kind: "send", amount: 320, from: "wallet", to: "landlord", date: new Date(now - 20 * day).toISOString(), note: "Rent share" },
-  { id: "w3", kind: "wallet_out", amount: 500, from: "wallet", to: "emergency", reserveName: "Emergency Survival", date: new Date(now - 17 * day).toISOString(), note: "Top-up" },
-  { id: "w4", kind: "send", amount: 84, from: "wallet", to: "groceries", date: new Date(now - 12 * day).toISOString(), note: "Groceries" },
-  { id: "w5", kind: "receive", amount: 240, to: "wallet", from: "refund", date: new Date(now - 8 * day).toISOString(), note: "Refund" },
-  { id: "w6", kind: "wallet_in", amount: 150, from: "sabbatical", to: "wallet", reserveName: "Winter Sabbatical", date: new Date(now - 5 * day).toISOString(), note: "Reclaim" },
-  { id: "w7", kind: "send", amount: 46, from: "wallet", to: "coffee", date: new Date(now - 2 * day).toISOString(), note: "Cafe" },
-];
+export function mapReserveRow(row: ReserveRow, balance: number): Reserve {
+  return {
+    id: row.id,
+    name: row.name,
+    targetType: row.target_type === "days" ? "days" : "amount",
+    targetValue: Number(row.target_value ?? 0),
+    current: balance,
+    currency: row.currency ?? DEFAULT_CURRENCY,
+    archived: !!row.archived,
+  };
+}
+
+/** Maps a ledger row onto the transaction shape the UI already renders. */
+export function mapLedgerEntry(
+  e: LedgerEntry,
+  reserveNames: Record<string, string>,
+): Transaction {
+  const reserveId = e.reserve_id ?? undefined;
+  const reserveName = reserveId ? reserveNames[reserveId] : undefined;
+  const note =
+    (typeof e.meta?.note === "string" ? (e.meta.note as string) : undefined) ??
+    e.counterparty ??
+    undefined;
+
+  const base = {
+    id: e.id,
+    amount: Math.abs(Number(e.amount ?? 0)),
+    date: e.created_at,
+    currency: e.currency ?? DEFAULT_CURRENCY,
+    status: e.status,
+    reference: e.reference ?? undefined,
+    reserveName,
+    note,
+  };
+
+  switch (e.entry_kind) {
+    case "deposit":
+      return { ...base, kind: "deposit", to: reserveId ?? "unallocated" };
+    case "withdrawal":
+      return { ...base, kind: "withdraw", from: reserveId ?? "unallocated" };
+    case "send":
+      return { ...base, kind: "send", from: "wallet", to: e.counterparty ?? "recipient" };
+    case "receive":
+      return { ...base, kind: "receive", from: e.counterparty ?? "sender", to: "wallet" };
+    case "move_to_reserve":
+      return { ...base, kind: "wallet_out", from: "wallet", to: reserveId };
+    case "move_from_reserve":
+      return { ...base, kind: "wallet_in", from: reserveId, to: "wallet" };
+    default:
+      return { ...base, kind: "yield", to: reserveId ?? "unallocated" };
+  }
+}
 
 export function targetAmount(r: Reserve, monthlyCost: number): number {
   return r.targetType === "amount"
@@ -96,12 +132,18 @@ export function reserveProgress(r: Reserve, monthlyCost: number): number {
   return Math.min(100, (r.current / target) * 100);
 }
 
-export function formatUSD(n: number): string {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: n % 1 === 0 ? 0 : 2,
-  });
+/** Formats using each row's own currency, defaulting to NGN. */
+export function formatMoney(n: number, currency: string = DEFAULT_CURRENCY): string {
+  const value = Number.isFinite(n) ? n : 0;
+  try {
+    return value.toLocaleString(undefined, {
+      style: "currency",
+      currency: currency || DEFAULT_CURRENCY,
+      maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+    });
+  } catch {
+    return `${currency} ${value.toLocaleString()}`;
+  }
 }
 
 export function computeRunway(balance: number, monthlyCost: number) {
