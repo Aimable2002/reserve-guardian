@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
-import { formatUSD, reserveProgress, targetAmount } from "@/lib/reserve-data";
+import { formatMoney, reserveProgress, targetAmount } from "@/lib/reserve-data";
 
 export const Route = createFileRoute("/reserves/$id")({
   head: ({ params }) => ({
@@ -57,19 +57,19 @@ function ReserveDetail() {
   const complete = pct >= 100;
   const targetLabel =
     reserve.targetType === "days"
-      ? `Sustain ${reserve.targetValue} days · ${formatUSD(target)}`
-      : `Reach ${formatUSD(reserve.targetValue)}`;
+      ? `Sustain ${reserve.targetValue} days · ${formatMoney(target)}`
+      : `Reach ${formatMoney(reserve.targetValue)}`;
 
   const submitTx = () => {
     const v = Number(amount);
     if (!Number.isFinite(v) || v <= 0) return toast.error("Enter an amount greater than zero.");
     if (tx === "deposit") {
       store.depositToReserve(reserve.id, v);
-      toast.success(`Deposited ${formatUSD(v)}`);
+      toast.success(`Deposited ${formatMoney(v)}`);
     } else if (tx === "withdraw") {
       const ok = store.withdrawFromReserve(reserve.id, v);
-      if (!ok) return toast.error(`Only ${formatUSD(reserve.current)} available.`);
-      toast.success(`Withdrew ${formatUSD(v)}`);
+      if (!ok) return toast.error(`Only ${formatMoney(reserve.current)} available.`);
+      toast.success(`Withdrew ${formatMoney(v)}`);
     }
     setTx(null);
     setAmount("");
@@ -123,8 +123,8 @@ function ReserveDetail() {
           <p className="mt-1 text-xs text-white/60">{targetLabel}</p>
           <div className="mt-6">
             <div className="mb-2 flex items-baseline justify-between">
-              <span className="font-mono text-3xl font-semibold">{formatUSD(reserve.current)}</span>
-              <span className="font-mono text-sm text-white/60">of {formatUSD(target)}</span>
+              <span className="font-mono text-3xl font-semibold">{formatMoney(reserve.current)}</span>
+              <span className="font-mono text-sm text-white/60">of {formatMoney(target)}</span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
               <div
@@ -136,7 +136,7 @@ function ReserveDetail() {
             </div>
             <div className="mt-2 flex justify-between text-[11px] text-white/60">
               <span>{pct.toFixed(0)}% funded</span>
-              <span>{complete ? "Fully Reserved" : `${formatUSD(Math.max(0, target - reserve.current))} remaining`}</span>
+              <span>{complete ? "Fully Reserved" : `${formatMoney(Math.max(0, target - reserve.current))} remaining`}</span>
             </div>
           </div>
         </section>
@@ -195,7 +195,7 @@ function ReserveDetail() {
                     }`}
                   >
                     {inflow ? "+" : "−"}
-                    {formatUSD(t.amount)}
+                    {formatMoney(t.amount)}
                   </span>
                 </div>
               );
@@ -213,7 +213,7 @@ function ReserveDetail() {
           </button>
           {reserve.current > 0 && (
             <p className="mt-2 text-center text-[11px] text-reserve-slate">
-              Withdraw the remaining {formatUSD(reserve.current)} before deleting.
+              Withdraw the remaining {formatMoney(reserve.current)} before deleting.
             </p>
           )}
         </section>

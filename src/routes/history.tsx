@@ -9,7 +9,7 @@ import {
   QrCode,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { formatUSD, type Transaction } from "@/lib/reserve-data";
+import { formatMoney, type Transaction } from "@/lib/reserve-data";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/history")({
@@ -213,7 +213,7 @@ function Ledger({
                         }`}
                       >
                         {t.kind === "allocate" ? "" : inflow ? "+" : "−"}
-                        {formatUSD(t.amount)}
+                        {formatMoney(t.amount)}
                       </span>
                     </div>
                   );
