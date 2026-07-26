@@ -10,7 +10,7 @@ import { ArrowDownRight, ArrowUpRight, Plus, TrendingUp, TrendingDown } from "lu
 import { useStore } from "@/lib/store";
 import {
   computeRunway,
-  formatUSD,
+  formatMoney,
   reserveProgress,
   targetAmount,
 } from "@/lib/reserve-data";
@@ -90,17 +90,17 @@ function Index() {
     if (tx.mode === "deposit") {
       if (isUnallocated) store.depositToUnallocated(value);
       else store.depositToReserve(reserve!.id, value);
-      toast.success(`Deposited ${formatUSD(value)} to ${label}`);
+      toast.success(`Deposited ${formatMoney(value)} to ${label}`);
     } else if (tx.mode === "withdraw") {
       const ok = isUnallocated
         ? store.withdrawFromUnallocated(value)
         : store.withdrawFromReserve(reserve!.id, value);
       if (!ok) {
         const max = isUnallocated ? unallocated : reserve!.current;
-        toast.error(`Only ${formatUSD(max)} available in ${label}.`);
+        toast.error(`Only ${formatMoney(max)} available in ${label}.`);
         return;
       }
-      toast.success(`Withdrew ${formatUSD(value)} from ${label}`);
+      toast.success(`Withdrew ${formatMoney(value)} from ${label}`);
     } else {
       // allocate: from unallocated to a reserve
       if (isUnallocated) {
@@ -109,10 +109,10 @@ function Index() {
       }
       const ok = store.allocate(reserve!.id, value);
       if (!ok) {
-        toast.error(`Only ${formatUSD(unallocated)} available to allocate.`);
+        toast.error(`Only ${formatMoney(unallocated)} available to allocate.`);
         return;
       }
-      toast.success(`Allocated ${formatUSD(value)} to ${label}`);
+      toast.success(`Allocated ${formatMoney(value)} to ${label}`);
     }
     setTx(null);
   };
@@ -168,7 +168,7 @@ function Index() {
             <div className="relative z-10">
               <p className="mb-1 text-sm text-white/60">Total Reserved Balance</p>
               <h2 className="mb-6 font-mono text-4xl font-semibold tracking-tight">
-                {formatUSD(balance)}
+                {formatMoney(balance)}
               </h2>
               <div className="flex items-end justify-between">
                 <div>
@@ -201,7 +201,7 @@ function Index() {
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-reserve-slate">
                   Unallocated Balance
                 </p>
-                <p className="mt-1 font-mono text-2xl font-semibold">{formatUSD(unallocated)}</p>
+                <p className="mt-1 font-mono text-2xl font-semibold">{formatMoney(unallocated)}</p>
                 <p className="mt-1 text-[11px] text-reserve-slate">
                   Yield &amp; deposits waiting to be assigned
                 </p>
@@ -280,11 +280,11 @@ function Index() {
             const targetLabel =
               r.targetType === "days"
                 ? `Target: Sustain ${r.targetValue} days`
-                : `Target: Reach ${formatUSD(r.targetValue)}`;
+                : `Target: Reach ${formatMoney(r.targetValue)}`;
             const rightMeta =
               r.targetType === "days"
                 ? `${((r.current / monthlyCost) * 30).toFixed(0)} days ready`
-                : `${formatUSD(Math.max(0, r.targetValue - r.current))} left`;
+                : `${formatMoney(Math.max(0, r.targetValue - r.current))} left`;
             return (
               <Link
                 key={r.id}
@@ -315,7 +315,7 @@ function Index() {
                 </div>
                 <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                   <span className="truncate text-[11px] text-reserve-slate">
-                    {formatUSD(r.current)} / {formatUSD(target)}
+                    {formatMoney(r.current)} / {formatMoney(target)}
                   </span>
                   <span className="shrink-0 text-[11px] font-medium">
                     {complete ? "Fully Reserved" : rightMeta}
@@ -381,11 +381,11 @@ function Index() {
                 className="mt-2 w-full rounded-lg border border-reserve-navy/10 bg-white p-3 text-sm"
               >
                 {tx?.mode !== "allocate" && (
-                  <option value="unallocated">Unallocated — {formatUSD(unallocated)}</option>
+                  <option value="unallocated">Unallocated — {formatMoney(unallocated)}</option>
                 )}
                 {(tx?.mode === "allocate" ? allocateTargets : reserves).map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.name} — {formatUSD(r.current)}
+                    {r.name} — {formatMoney(r.current)}
                   </option>
                 ))}
               </select>

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
-import { formatUSD } from "@/lib/reserve-data";
+import { formatMoney } from "@/lib/reserve-data";
 
 export const Route = createFileRoute("/wallet/receive")({
   head: () => ({
@@ -62,7 +62,7 @@ function ReceivePage() {
     const v = Number(request);
     if (!Number.isFinite(v) || v <= 0) return toast.error("Enter an amount to simulate.");
     store.walletReceive("Test sender", v, "Simulated inbound");
-    toast.success(`Received ${formatUSD(v)}`);
+    toast.success(`Received ${formatMoney(v)}`);
     setRequest("");
   };
 

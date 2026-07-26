@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
-import { formatUSD } from "@/lib/reserve-data";
+import { formatMoney } from "@/lib/reserve-data";
 
 export const Route = createFileRoute("/wallet/send")({
   head: () => ({
@@ -36,7 +36,7 @@ function SendPage() {
   const submit = () => {
     const ok = store.walletSend(recipient.trim(), value, note.trim() || undefined);
     if (!ok) return toast.error("Send failed — check available balance.");
-    toast.success(`Sent ${formatUSD(value)} to ${recipient.trim()}`);
+    toast.success(`Sent ${formatMoney(value)} to ${recipient.trim()}`);
     navigate({ to: "/wallet" });
   };
 
@@ -57,7 +57,7 @@ function SendPage() {
 
         <section className="rounded-2xl bg-reserve-navy p-5 text-white">
           <p className="text-[11px] uppercase tracking-wider text-white/60">Available</p>
-          <p className="mt-1 font-mono text-2xl font-semibold">{formatUSD(store.wallet)}</p>
+          <p className="mt-1 font-mono text-2xl font-semibold">{formatMoney(store.wallet)}</p>
         </section>
 
         {step === "form" ? (
@@ -105,7 +105,7 @@ function SendPage() {
         ) : (
           <section className="mt-6 rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
             <p className="text-[11px] uppercase tracking-wider text-reserve-slate">Confirm Send</p>
-            <p className="mt-3 font-mono text-3xl font-semibold">{formatUSD(value)}</p>
+            <p className="mt-3 font-mono text-3xl font-semibold">{formatMoney(value)}</p>
             <p className="mt-1 text-sm text-reserve-slate">to {recipient.trim()}</p>
             {note && <p className="mt-1 text-xs text-reserve-slate">"{note.trim()}"</p>}
             <div className="mt-6 grid grid-cols-2 gap-2">

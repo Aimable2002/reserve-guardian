@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useStore } from "@/lib/store";
-import { formatUSD, reserveProgress, computeRunway, type Transaction } from "@/lib/reserve-data";
+import { formatMoney, reserveProgress, computeRunway, type Transaction } from "@/lib/reserve-data";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/analytics")({
@@ -133,7 +133,7 @@ function AnalyticsPage() {
         <section className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
           <div className="mb-1 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold">Total Balance</h2>
-            <span className="font-mono text-sm font-semibold">{formatUSD(store.balance)}</span>
+            <span className="font-mono text-sm font-semibold">{formatMoney(store.balance)}</span>
           </div>
           <p className="text-[11px] text-reserve-slate">Last 12 weeks</p>
           <div className="mt-3">
@@ -148,7 +148,7 @@ function AnalyticsPage() {
             <div className="rounded-xl bg-reserve-navy/5 p-3">
               <p className="text-[10px] uppercase tracking-wider text-reserve-slate">Allocated</p>
               <p className="mt-1 font-mono text-sm font-semibold">
-                {formatUSD(store.reserves.reduce((s, r) => s + r.current, 0))}
+                {formatMoney(store.reserves.reduce((s, r) => s + r.current, 0))}
               </p>
               <div className="mt-1">
                 <Sparkline
@@ -160,7 +160,7 @@ function AnalyticsPage() {
             </div>
             <div className="rounded-xl bg-reserve-emerald/10 p-3">
               <p className="text-[10px] uppercase tracking-wider text-reserve-slate">Unallocated</p>
-              <p className="mt-1 font-mono text-sm font-semibold">{formatUSD(store.unallocated)}</p>
+              <p className="mt-1 font-mono text-sm font-semibold">{formatMoney(store.unallocated)}</p>
               <div className="mt-1">
                 <Sparkline
                   series={series}
@@ -181,7 +181,7 @@ function AnalyticsPage() {
             </span>
           </div>
           <p className="text-[11px] text-reserve-slate">
-            At {formatUSD(store.monthlyCost)} / month
+            At {formatMoney(store.monthlyCost)} / month
           </p>
           <div className="mt-3">
             <Sparkline
@@ -295,7 +295,7 @@ function WalletAnalytics({
       <section className="rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
         <div className="mb-1 flex items-baseline justify-between">
           <h2 className="text-sm font-semibold">Wallet Balance</h2>
-          <span className="font-mono text-sm font-semibold">{formatUSD(balance)}</span>
+          <span className="font-mono text-sm font-semibold">{formatMoney(balance)}</span>
         </div>
         <p className="text-[11px] text-reserve-slate">Net cash flow · last 12 weeks</p>
         <div className="mt-3">
@@ -310,7 +310,7 @@ function WalletAnalytics({
           <div className="rounded-xl bg-reserve-emerald/10 p-3">
             <p className="text-[10px] uppercase tracking-wider text-reserve-slate">Income</p>
             <p className="mt-1 font-mono text-sm font-semibold">
-              {formatUSD(wallet.buckets.reduce((s, b) => s + b.income, 0))}
+              {formatMoney(wallet.buckets.reduce((s, b) => s + b.income, 0))}
             </p>
             <div className="mt-1">
               <Sparkline
@@ -323,7 +323,7 @@ function WalletAnalytics({
           <div className="rounded-xl bg-destructive/10 p-3">
             <p className="text-[10px] uppercase tracking-wider text-reserve-slate">Spending</p>
             <p className="mt-1 font-mono text-sm font-semibold">
-              {formatUSD(wallet.buckets.reduce((s, b) => s + b.spend, 0))}
+              {formatMoney(wallet.buckets.reduce((s, b) => s + b.spend, 0))}
             </p>
             <div className="mt-1">
               <Sparkline
@@ -352,7 +352,7 @@ function WalletAnalytics({
                   <div className="mb-1 flex items-baseline justify-between gap-2">
                     <span className="truncate text-xs font-medium capitalize">{b.label}</span>
                     <span className="shrink-0 font-mono text-[11px] font-semibold">
-                      {formatUSD(b.value)}{" "}
+                      {formatMoney(b.value)}{" "}
                       <span className="text-reserve-slate">· {pct.toFixed(0)}%</span>
                     </span>
                   </div>

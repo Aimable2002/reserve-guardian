@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Send, QrCode, ArrowDownToLine, ArrowUpFromLine, ArrowDownRight, ArrowUpRight, ArrowRightLeft } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { formatUSD, type Transaction } from "@/lib/reserve-data";
+import { formatMoney, type Transaction } from "@/lib/reserve-data";
 
 export const Route = createFileRoute("/wallet")({
   head: () => ({
@@ -60,14 +60,14 @@ function WalletHome() {
           <div className="relative z-10">
             <p className="mb-1 text-sm text-white/60">Available to Spend</p>
             <h2 className="mb-6 font-mono text-4xl font-semibold tracking-tight">
-              {formatUSD(store.wallet)}
+              {formatMoney(store.wallet)}
             </h2>
             <div className="flex items-end justify-between">
               <div>
                 <p className="mb-1 text-[10px] uppercase tracking-wider text-white/60">
                   Reserved Elsewhere
                 </p>
-                <p className="font-mono text-lg font-semibold">{formatUSD(store.balance)}</p>
+                <p className="font-mono text-lg font-semibold">{formatMoney(store.balance)}</p>
               </div>
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10">
                 <span className="font-mono text-[10px] font-bold text-reserve-emerald">CASH</span>
@@ -124,7 +124,7 @@ function WalletHome() {
                     </div>
                     <span className={`shrink-0 font-mono text-sm font-semibold ${m.tone}`}>
                       {m.sign}
-                      {formatUSD(t.amount)}
+                      {formatMoney(t.amount)}
                     </span>
                   </div>
                 );

@@ -1,154 +1,241 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import {
-  INITIAL_BALANCE,
-  INITIAL_MONTHLY_COST,
-  INITIAL_RESERVES,
-  INITIAL_TRANSACTIONS,
-  INITIAL_UNALLOCATED,
-  INITIAL_WALLET,
-  INITIAL_WALLET_TRANSACTIONS,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { supabase } from "./supabase";
+import { useAuth } from "./auth";
+import {
+  api,
+  type DepositRequest,
+  type DepositResponse,
+  type Recipient,
+  type TransferResponse,
+} from "./backend";
+import {
+  DEFAULT_CURRENCY,
+  DEFAULT_MONTHLY_COST,
+  mapLedgerEntry,
+  mapReserveRow,
+  type LedgerEntry,
   type Reserve,
+  type ReserveRow,
   type Transaction,
 } from "./reserve-data";
+
+const MONTHLY_COST_KEY = "fortress.monthlyCost";
 
 type State = {
   balance: number;
   unallocated: number;
   monthlyCost: number;
   wallet: number;
+  currency: string;
   reserves: Reserve[];
   transactions: Transaction[];
+  loading: boolean;
+  error: string | null;
 };
 
 type Ctx = State & {
+  refresh: () => Promise<void>;
   setMonthlyCost: (v: number) => void;
-  depositToUnallocated: (amount: number) => void;
-  withdrawFromUnallocated: (amount: number) => boolean;
-  depositToReserve: (reserveId: string, amount: number) => void;
-  withdrawFromReserve: (reserveId: string, amount: number) => boolean;
-  allocate: (reserveId: string, amount: number) => boolean;
-  createReserve: (r: Omit<Reserve, "id" | "current">) => string;
-  updateReserve: (id: string, patch: Partial<Pick<Reserve, "name" | "targetType" | "targetValue">>) => void;
-  deleteReserve: (id: string) => boolean;
-  walletSend: (recipient: string, amount: number, note?: string) => boolean;
-  walletReceive: (sender: string, amount: number, note?: string) => void;
-  walletToReserve: (reserveId: string, amount: number) => boolean;
-  reserveToWallet: (reserveId: string, amount: number) => boolean;
+
+  /** Fund the wallet through Flutterwave (async, settles via webhook). */
+  deposit: (input: Omit<DepositRequest, "redirect_url"> & { redirect_url?: string }) => Promise<DepositResponse>;
+  /** Pay someone from the wallet. */
+  walletSend: (input: { amount: number; currency?: string; recipient: Recipient }) => Promise<TransferResponse>;
+  /** Cash out of the wallet to a bank / mobile money account. */
+  walletWithdraw: (input: { amount: number; currency?: string; recipient: Recipient }) => Promise<TransferResponse>;
+  /** Wallet -> reserve (instant). */
+  walletToReserve: (reserveId: string, amount: number) => Promise<void>;
+  /** Reserve -> wallet (instant). */
+  reserveToWallet: (reserveId: string, amount: number) => Promise<void>;
+
+  createReserve: (r: { name: string; targetType: "days" | "amount"; targetValue: number; currency?: string }) => Promise<string>;
+  updateReserve: (
+    id: string,
+    patch: Partial<Pick<Reserve, "name" | "targetType" | "targetValue">>,
+  ) => Promise<void>;
+  deleteReserve: (id: string) => Promise<void>;
 };
 
 const StoreContext = createContext<Ctx | null>(null);
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [balance, setBalance] = useState(INITIAL_BALANCE);
-  const [unallocated, setUnallocated] = useState(INITIAL_UNALLOCATED);
-  const [monthlyCost, setMonthlyCost] = useState(INITIAL_MONTHLY_COST);
-  const [reserves, setReserves] = useState<Reserve[]>(INITIAL_RESERVES);
-  const [wallet, setWallet] = useState(INITIAL_WALLET);
-  const [transactions, setTransactions] = useState<Transaction[]>(
-    [...INITIAL_TRANSACTIONS, ...INITIAL_WALLET_TRANSACTIONS].sort(
-      (a, b) => +new Date(b.date) - +new Date(a.date),
-    ),
-  );
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
 
-  const pushTx = (tx: Omit<Transaction, "id" | "date"> & { date?: string }) =>
-    setTransactions((prev) => [
-      { id: uid(), date: tx.date ?? new Date().toISOString(), ...tx },
-      ...prev,
-    ]);
+  const [reserves, setReserves] = useState<Reserve[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [wallet, setWallet] = useState(0);
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [monthlyCost, setMonthlyCostState] = useState(DEFAULT_MONTHLY_COST);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = Number(window.localStorage.getItem(MONTHLY_COST_KEY));
+    if (Number.isFinite(stored) && stored > 0) setMonthlyCostState(stored);
+  }, []);
+
+  const setMonthlyCost = useCallback((v: number) => {
+    setMonthlyCostState(v);
+    if (typeof window !== "undefined") window.localStorage.setItem(MONTHLY_COST_KEY, String(v));
+  }, []);
+
+  const refresh = useCallback(async () => {
+    if (!userId) {
+      setReserves([]);
+      setTransactions([]);
+      setWallet(0);
+      setLoading(false);
+      return;
+    }
+    setError(null);
+    try {
+      const [profileRes, reservesRes, ledgerRes, walletRes] = await Promise.all([
+        supabase.from("profiles").select("default_currency").eq("id", userId).maybeSingle(),
+        supabase.from("reserves").select("*").order("created_at", { ascending: true }),
+        supabase.from("ledger_entries").select("*").order("created_at", { ascending: false }).limit(500),
+        supabase.rpc("wallet_balance", { p_user_id: userId }),
+      ]);
+
+      if (reservesRes.error) throw reservesRes.error;
+      if (ledgerRes.error) throw ledgerRes.error;
+      if (walletRes.error) throw walletRes.error;
+
+      const defaultCurrency = profileRes.data?.default_currency ?? DEFAULT_CURRENCY;
+      setCurrency(defaultCurrency);
+      setWallet(Number(walletRes.data ?? 0));
+
+      const rows = ((reservesRes.data ?? []) as ReserveRow[]).filter((r) => !r.archived);
+      const balances = await Promise.all(
+        rows.map((r) => supabase.rpc("reserve_balance", { p_reserve_id: r.id })),
+      );
+      const mapped = rows.map((r, i) => mapReserveRow(r, Number(balances[i]?.data ?? 0)));
+      setReserves(mapped);
+
+      const names = Object.fromEntries(mapped.map((r) => [r.id, r.name]));
+      setTransactions(
+        ((ledgerRes.data ?? []) as LedgerEntry[]).map((e) => mapLedgerEntry(e, names)),
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "Could not load your account.");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    setLoading(true);
+    void refresh();
+  }, [refresh]);
+
+  const allocated = reserves.reduce((s, r) => s + r.current, 0);
+  const balance = wallet + allocated;
 
   const value = useMemo<Ctx>(
     () => ({
       balance,
-      unallocated,
-      monthlyCost,
+      // The wallet *is* the unallocated pool — there is no separate account type.
+      unallocated: wallet,
       wallet,
+      monthlyCost,
+      currency,
       reserves,
       transactions,
+      loading,
+      error,
+      refresh,
       setMonthlyCost,
-      depositToUnallocated: (amount) => {
-        setBalance((b) => b + amount);
-        setUnallocated((u) => u + amount);
-        pushTx({ kind: "deposit", amount, to: "unallocated" });
+
+      deposit: async (input) => {
+        const res = await api.depositInitiate({
+          ...input,
+          currency: input.currency || currency,
+          redirect_url:
+            input.redirect_url ??
+            (typeof window !== "undefined" ? `${window.location.origin}/wallet` : "https://localhost/wallet"),
+        });
+        void refresh();
+        return res;
       },
-      withdrawFromUnallocated: (amount) => {
-        if (amount > unallocated) return false;
-        setBalance((b) => b - amount);
-        setUnallocated((u) => u - amount);
-        pushTx({ kind: "withdraw", amount, from: "unallocated" });
-        return true;
+
+      walletSend: async ({ amount, currency: c, recipient }) => {
+        const res = await api.walletSend({ amount, currency: c || currency, recipient });
+        void refresh();
+        return res;
       },
-      depositToReserve: (reserveId, amount) => {
-        const r = reserves.find((x) => x.id === reserveId);
-        if (!r) return;
-        setBalance((b) => b + amount);
-        setReserves((rs) => rs.map((x) => (x.id === reserveId ? { ...x, current: x.current + amount } : x)));
-        pushTx({ kind: "deposit", amount, to: reserveId, reserveName: r.name });
+
+      walletWithdraw: async ({ amount, currency: c, recipient }) => {
+        const res = await api.walletWithdraw({ amount, currency: c || currency, recipient });
+        void refresh();
+        return res;
       },
-      withdrawFromReserve: (reserveId, amount) => {
-        const r = reserves.find((x) => x.id === reserveId);
-        if (!r || amount > r.current) return false;
-        setBalance((b) => b - amount);
-        setReserves((rs) => rs.map((x) => (x.id === reserveId ? { ...x, current: x.current - amount } : x)));
-        pushTx({ kind: "withdraw", amount, from: reserveId, reserveName: r.name });
-        return true;
+
+      walletToReserve: async (reserveId, amount) => {
+        const res = await api.moveToReserve({ reserve_id: reserveId, amount });
+        setWallet(Number(res.wallet_balance));
+        setReserves((rs) =>
+          rs.map((r) => (r.id === reserveId ? { ...r, current: Number(res.reserve_balance) } : r)),
+        );
+        void refresh();
       },
-      allocate: (reserveId, amount) => {
-        const r = reserves.find((x) => x.id === reserveId);
-        if (!r || amount > unallocated) return false;
-        setUnallocated((u) => u - amount);
-        setReserves((rs) => rs.map((x) => (x.id === reserveId ? { ...x, current: x.current + amount } : x)));
-        pushTx({ kind: "allocate", amount, from: "unallocated", to: reserveId, reserveName: r.name });
-        return true;
+
+      reserveToWallet: async (reserveId, amount) => {
+        const res = await api.moveFromReserve({ reserve_id: reserveId, amount });
+        setWallet(Number(res.wallet_balance));
+        setReserves((rs) =>
+          rs.map((r) => (r.id === reserveId ? { ...r, current: Number(res.reserve_balance) } : r)),
+        );
+        void refresh();
       },
-      createReserve: (r) => {
-        const id = uid();
-        setReserves((rs) => [...rs, { id, current: 0, ...r }]);
-        return id;
+
+      createReserve: async (r) => {
+        if (!userId) throw new Error("Please sign in first.");
+        const { data, error: err } = await supabase
+          .from("reserves")
+          .insert({
+            user_id: userId,
+            name: r.name,
+            target_type: r.targetType,
+            target_value: r.targetValue,
+            currency: r.currency ?? currency,
+          })
+          .select("id")
+          .single();
+        if (err) throw err;
+        await refresh();
+        return data.id as string;
       },
-      updateReserve: (id, patch) => {
-        setReserves((rs) => rs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+
+      updateReserve: async (id, patch) => {
+        const { error: err } = await supabase
+          .from("reserves")
+          .update({
+            ...(patch.name !== undefined ? { name: patch.name } : {}),
+            ...(patch.targetType !== undefined ? { target_type: patch.targetType } : {}),
+            ...(patch.targetValue !== undefined ? { target_value: patch.targetValue } : {}),
+          })
+          .eq("id", id);
+        if (err) throw err;
+        await refresh();
       },
-      deleteReserve: (id) => {
-        const r = reserves.find((x) => x.id === id);
-        if (!r || r.current > 0) return false;
-        setReserves((rs) => rs.filter((x) => x.id !== id));
-        return true;
-      },
-      walletSend: (recipient, amount, note) => {
-        if (amount <= 0 || amount > wallet) return false;
-        setWallet((w) => w - amount);
-        pushTx({ kind: "send", amount, from: "wallet", to: recipient || "recipient", note });
-        return true;
-      },
-      walletReceive: (sender, amount, note) => {
-        if (amount <= 0) return;
-        setWallet((w) => w + amount);
-        pushTx({ kind: "receive", amount, from: sender || "sender", to: "wallet", note });
-      },
-      walletToReserve: (reserveId, amount) => {
-        const r = reserves.find((x) => x.id === reserveId);
-        if (!r || amount <= 0 || amount > wallet) return false;
-        setWallet((w) => w - amount);
-        setBalance((b) => b + amount);
-        setReserves((rs) => rs.map((x) => (x.id === reserveId ? { ...x, current: x.current + amount } : x)));
-        pushTx({ kind: "wallet_out", amount, from: "wallet", to: reserveId, reserveName: r.name });
-        return true;
-      },
-      reserveToWallet: (reserveId, amount) => {
-        const r = reserves.find((x) => x.id === reserveId);
-        if (!r || amount <= 0 || amount > r.current) return false;
-        setWallet((w) => w + amount);
-        setBalance((b) => b - amount);
-        setReserves((rs) => rs.map((x) => (x.id === reserveId ? { ...x, current: x.current - amount } : x)));
-        pushTx({ kind: "wallet_in", amount, from: reserveId, to: "wallet", reserveName: r.name });
-        return true;
+
+      deleteReserve: async (id) => {
+        // The DB trigger rejects deletes when the balance isn't zero.
+        const { error: err } = await supabase.from("reserves").delete().eq("id", id);
+        if (err) throw err;
+        await refresh();
       },
     }),
-    [balance, unallocated, monthlyCost, wallet, reserves, transactions],
+    [balance, wallet, monthlyCost, currency, reserves, transactions, loading, error, refresh, setMonthlyCost, userId],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

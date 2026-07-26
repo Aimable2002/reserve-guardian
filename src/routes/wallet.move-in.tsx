@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
-import { formatUSD } from "@/lib/reserve-data";
+import { formatMoney } from "@/lib/reserve-data";
 
 export const Route = createFileRoute("/wallet/move-in")({
   head: () => ({
@@ -39,7 +39,7 @@ function MoveInPage() {
     if (!reserve) return;
     const ok = store.reserveToWallet(reserve.id, value);
     if (!ok) return toast.error("Reserve doesn't have enough to move.");
-    toast.success(`Moved ${formatUSD(value)} → Wallet`);
+    toast.success(`Moved ${formatMoney(value)} → Wallet`);
     navigate({ to: "/wallet" });
   };
 
@@ -62,12 +62,12 @@ function MoveInPage() {
           <div className="rounded-2xl border border-reserve-navy/5 bg-white p-4">
             <p className="text-[10px] uppercase tracking-wider text-reserve-slate">Reserve</p>
             <p className="mt-1 truncate font-mono text-lg font-semibold">
-              {reserve ? formatUSD(reserve.current) : "—"}
+              {reserve ? formatMoney(reserve.current) : "—"}
             </p>
           </div>
           <div className="rounded-2xl bg-reserve-navy p-4 text-white">
             <p className="text-[10px] uppercase tracking-wider text-white/60">Wallet</p>
-            <p className="mt-1 font-mono text-lg font-semibold">{formatUSD(store.wallet)}</p>
+            <p className="mt-1 font-mono text-lg font-semibold">{formatMoney(store.wallet)}</p>
           </div>
         </section>
 
@@ -82,7 +82,7 @@ function MoveInPage() {
               >
                 {store.reserves.map((r) => (
                   <option key={r.id} value={r.id} disabled={r.current <= 0}>
-                    {r.name} — {formatUSD(r.current)}
+                    {r.name} — {formatMoney(r.current)}
                   </option>
                 ))}
               </select>
@@ -101,7 +101,7 @@ function MoveInPage() {
                 autoFocus
               />
               <p className="mt-1 text-[10px] text-reserve-slate">
-                Available: {reserve ? formatUSD(reserve.current) : "—"}
+                Available: {reserve ? formatMoney(reserve.current) : "—"}
               </p>
             </div>
             <Button
@@ -115,7 +115,7 @@ function MoveInPage() {
         ) : (
           <section className="mt-6 rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
             <p className="text-[11px] uppercase tracking-wider text-reserve-slate">Confirm Move</p>
-            <p className="mt-3 font-mono text-3xl font-semibold">{formatUSD(value)}</p>
+            <p className="mt-3 font-mono text-3xl font-semibold">{formatMoney(value)}</p>
             <p className="mt-1 text-sm text-reserve-slate">{reserve?.name} → Wallet</p>
             <div className="mt-6 grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setStep("form")}>Back</Button>
