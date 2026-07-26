@@ -1,17 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, Copy } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ArrowLeft, Copy, Loader2 } from "lucide-react";
+import QRCode from "qrcode";
+import { api, BackendError } from "@/lib/backend";
 
 export const Route = createFileRoute("/wallet/receive")({
   head: () => ({
     meta: [
       { title: "Receive · Wallet" },
-      { name: "description", content: "Share a code or request an amount to receive funds." },
+      { name: "description", content: "Share your code — anyone can pay you, no account required." },
       { property: "og:title", content: "Receive · Wallet" },
-      { property: "og:description", content: "Share a code or request an amount to receive funds." },
+      { property: "og:description", content: "Share your code — anyone can pay you, no account required." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -19,36 +19,54 @@ export const Route = createFileRoute("/wallet/receive")({
   component: ReceivePage,
 });
 
-// Small deterministic pseudo-QR grid (18x18) so it looks like a code without a lib.
-function useQrGrid(seed: string) {
-  return useMemo(() => {
-    const size = 18;
-    let h = 2166136261;
-    for (let i = 0; i < seed.length; i++) {
-      h ^= seed.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    const cells: boolean[] = [];
-    for (let i = 0; i < size * size; i++) {
-      h ^= h << 13;
-      h ^= h >>> 17;
-      h ^= h << 5;
-      cells.push((h & 1) === 1);
-    }
-    return { size, cells };
-  }, [seed]);
-}
-
 function ReceivePage() {
-  const [request, setRequest] = useState("");
-  const handle = "@fortress/you";
-  const payload = request ? `${handle}?amount=${request}` : handle;
-  const { size, cells } = useQrGrid(payload);
+  const [receiveCode, setReceiveCode] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const payLink = receiveCode ? `${window.location.origin}/pay/${receiveCode}` : "";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await api.getReceiveCode();
+        if (cancelled) return;
+        setReceiveCode(res.receive_code);
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof BackendError ? err.message : "Couldn't load your receive code.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!payLink) return;
+    let cancelled = false;
+    QRCode.toDataURL(payLink, { width: 480, margin: 1, color: { dark: "#0b1b34", light: "#ffffff" } })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Couldn't render the QR code.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [payLink]);
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(payload);
-      toast.success("Copied to clipboard");
+      await navigator.clipboard.writeText(payLink);
+      toast.success("Link copied");
     } catch {
       toast.error("Could not copy.");
     }
@@ -70,43 +88,37 @@ function ReceivePage() {
         </header>
 
         <section className="rounded-3xl border border-reserve-navy/5 bg-white p-6 text-center shadow-sm">
-          <p className="text-[11px] uppercase tracking-wider text-reserve-slate">Your handle</p>
-          <p className="mt-1 font-mono text-lg font-semibold">{handle}</p>
-          <div className="mx-auto mt-5 grid aspect-square w-56 gap-[2px] rounded-xl bg-reserve-navy/5 p-3"
-               style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}>
-            {cells.map((on, i) => (
-              <span
-                key={i}
-                className={on ? "bg-reserve-navy" : "bg-transparent"}
-                style={{ borderRadius: 1 }}
-              />
-            ))}
-          </div>
+          <p className="text-[11px] uppercase tracking-wider text-reserve-slate">Your payment link</p>
+
+          {loading ? (
+            <div className="mx-auto mt-6 flex h-56 w-56 items-center justify-center">
+              <Loader2 className="size-6 animate-spin text-reserve-slate" />
+            </div>
+          ) : error ? (
+            <p className="mt-6 rounded-xl bg-destructive/5 p-4 text-xs text-destructive">{error}</p>
+          ) : (
+            <>
+              <div className="mx-auto mt-5 w-56 overflow-hidden rounded-xl border border-reserve-navy/5">
+                {qrDataUrl && <img src={qrDataUrl} alt="Scan to pay" className="w-full" />}
+              </div>
+              <p className="mt-4 break-all font-mono text-[11px] text-reserve-slate">{payLink}</p>
+            </>
+          )}
+
           <button
             onClick={copy}
-            className="mt-5 inline-flex items-center gap-1 rounded-full bg-reserve-navy/5 px-3 py-1.5 text-[11px] font-semibold text-reserve-navy active:scale-95"
+            disabled={!payLink}
+            className="mt-5 inline-flex items-center gap-1 rounded-full bg-reserve-navy/5 px-3 py-1.5 text-[11px] font-semibold text-reserve-navy active:scale-95 disabled:opacity-40"
           >
-            <Copy className="size-3" /> Copy code
+            <Copy className="size-3" /> Copy link
           </button>
         </section>
 
         <section className="mt-6 rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
-          <Label className="text-[11px] uppercase tracking-wider text-reserve-slate">
-            Request specific amount (optional)
-          </Label>
-          <Input
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="1"
-            value={request}
-            onChange={(e) => setRequest(e.target.value)}
-            placeholder="0"
-            className="mt-2 font-mono text-lg"
-          />
-          <p className="mt-3 text-[10px] leading-relaxed text-reserve-slate">
-            Adding an amount encodes it into your shareable code above — it doesn't move any
-            money. Funds actually arrive in your wallet once a mobile money deposit clears.
+          <p className="text-[11px] leading-relaxed text-reserve-slate">
+            Anyone who scans this code or opens this link can pay you directly — <span className="font-semibold text-reserve-navy">they don't need
+            a Fortress account.</span> They choose the amount themselves when they pay. This code doesn't expire, so it's safe to
+            reuse, print, or save.
           </p>
         </section>
       </div>
