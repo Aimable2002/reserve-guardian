@@ -45,8 +45,8 @@ type Ctx = State & {
   refresh: () => Promise<void>;
   setMonthlyCost: (v: number) => void;
 
-  /** Fund the wallet through Flutterwave (async, settles via webhook). */
-  deposit: (input: Omit<DepositRequest, "redirect_url"> & { redirect_url?: string }) => Promise<DepositResponse>;
+  /** Fund the wallet via mobile money (async, settles via webhook). */
+  deposit: (input: Omit<DepositRequest, "currency"> & { currency?: string }) => Promise<DepositResponse>;
   /** Pay someone from the wallet. */
   walletSend: (input: { amount: number; currency?: string; recipient: Recipient }) => Promise<TransferResponse>;
   /** Cash out of the wallet to a bank / mobile money account. */
@@ -159,9 +159,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const res = await api.depositInitiate({
           ...input,
           currency: input.currency || currency,
-          redirect_url:
-            input.redirect_url ??
-            (typeof window !== "undefined" ? `${window.location.origin}/wallet` : "https://localhost/wallet"),
         });
         void refresh();
         return res;

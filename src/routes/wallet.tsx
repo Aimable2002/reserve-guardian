@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { Send, QrCode, ArrowDownToLine, ArrowUpFromLine, ArrowDownRight, ArrowUpRight, ArrowRightLeft } from "lucide-react";
+import { Send, QrCode, ArrowDownToLine, ArrowUpFromLine, ArrowDownRight, ArrowUpRight, ArrowRightLeft, Plus, Minus } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { formatMoney, type Transaction } from "@/lib/reserve-data";
 
@@ -79,6 +79,8 @@ function WalletHome() {
 
         {/* Quick actions */}
         <section className="mt-8 grid grid-cols-2 gap-3">
+          <QuickAction to="/wallet/deposit" Icon={Plus} title="Deposit" hint="Mobile money" />
+          <QuickAction to="/wallet/withdraw" Icon={Minus} title="Withdraw" hint="Mobile money" />
           <QuickAction to="/wallet/send" Icon={Send} title="Send" hint="Pay someone" />
           <QuickAction to="/wallet/receive" Icon={QrCode} title="Receive" hint="Share code" />
           <QuickAction to="/wallet/move-out" Icon={ArrowUpFromLine} title="Move to Reserve" hint="Save into a vault" />
@@ -143,7 +145,7 @@ function QuickAction({
   title,
   hint,
 }: {
-  to: "/wallet/send" | "/wallet/receive" | "/wallet/move-in" | "/wallet/move-out";
+  to: "/wallet/deposit" | "/wallet/withdraw" | "/wallet/send" | "/wallet/receive" | "/wallet/move-in" | "/wallet/move-out";
   Icon: React.ComponentType<{ className?: string }>;
   title: string;
   hint: string;

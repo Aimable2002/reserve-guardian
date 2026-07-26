@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -41,12 +41,14 @@ type TxMode = "deposit" | "withdraw" | "allocate";
 
 function Index() {
   const store = useStore();
+  const navigate = useNavigate();
   const { balance, unallocated, monthlyCost, reserves, transactions } = store;
   const [monthlyCostInput, setMonthlyCostInput] = useState<string>(
     String(monthlyCost),
   );
   const [tx, setTx] = useState<{ mode: TxMode; target: string } | null>(null);
   const [amount, setAmount] = useState<string>("");
+  const [busy, setBusy] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<"days" | "amount">("amount");
@@ -72,11 +74,23 @@ function Index() {
   }, [transactions]);
 
   const openTx = (mode: TxMode, target?: string) => {
+    const t = target ?? "unallocated";
+    // Funding/cashing out the wallet itself needs real mobile money details
+    // (network, phone, customer info) that this quick-amount dialog can't
+    // collect — send those to the real forms instead.
+    if (t === "unallocated" && mode === "deposit") {
+      navigate({ to: "/wallet/deposit" });
+      return;
+    }
+    if (t === "unallocated" && mode === "withdraw") {
+      navigate({ to: "/wallet/withdraw" });
+      return;
+    }
     setAmount("");
-    setTx({ mode, target: target ?? "unallocated" });
+    setTx({ mode, target: t });
   };
 
-  const submitTx = () => {
+  const submitTx = async () => {
     if (!tx) return;
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) {
@@ -86,35 +100,34 @@ function Index() {
     const isUnallocated = tx.target === "unallocated";
     const reserve = isUnallocated ? null : reserves.find((r) => r.id === tx.target);
     if (!isUnallocated && !reserve) return;
-    const label = isUnallocated ? "Unallocated" : reserve!.name;
-    if (tx.mode === "deposit") {
-      if (isUnallocated) store.depositToUnallocated(value);
-      else store.depositToReserve(reserve!.id, value);
-      toast.success(`Deposited ${formatMoney(value)} to ${label}`);
-    } else if (tx.mode === "withdraw") {
-      const ok = isUnallocated
-        ? store.withdrawFromUnallocated(value)
-        : store.withdrawFromReserve(reserve!.id, value);
-      if (!ok) {
-        const max = isUnallocated ? unallocated : reserve!.current;
-        toast.error(`Only ${formatMoney(max)} available in ${label}.`);
-        return;
-      }
-      toast.success(`Withdrew ${formatMoney(value)} from ${label}`);
-    } else {
-      // allocate: from unallocated to a reserve
-      if (isUnallocated) {
-        toast.error("Choose a reserve to allocate to.");
-        return;
-      }
-      const ok = store.allocate(reserve!.id, value);
-      if (!ok) {
-        toast.error(`Only ${formatMoney(unallocated)} available to allocate.`);
-        return;
-      }
-      toast.success(`Allocated ${formatMoney(value)} to ${label}`);
+    if (tx.mode === "allocate" && !reserve) {
+      toast.error("Choose a reserve to allocate to.");
+      return;
     }
-    setTx(null);
+    const label = isUnallocated ? "Unallocated" : reserve!.name;
+
+    setBusy(true);
+    try {
+      if (tx.mode === "deposit") {
+        // Reserve-context "deposit" is really funding a reserve from the
+        // wallet — an instant, DB-only move.
+        await store.walletToReserve(reserve!.id, value);
+        toast.success(`Moved ${formatMoney(value)} to ${label}`);
+      } else if (tx.mode === "withdraw") {
+        await store.reserveToWallet(reserve!.id, value);
+        toast.success(`Moved ${formatMoney(value)} from ${label} to Wallet`);
+      } else {
+        // allocate: from unallocated to a reserve
+        await store.walletToReserve(reserve!.id, value);
+        toast.success(`Allocated ${formatMoney(value)} to ${label}`);
+      }
+      setTx(null);
+    } catch (e: any) {
+      const max = isUnallocated ? unallocated : reserve!.current;
+      toast.error(e?.message ?? `Only ${formatMoney(max)} available in ${label}.`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const commitMonthlyCost = () => {
@@ -408,11 +421,12 @@ function Index() {
             </div>
           </div>
           <DialogFooter className="mt-2 grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => setTx(null)}>
+            <Button variant="outline" onClick={() => setTx(null)} disabled={busy}>
               Cancel
             </Button>
             <Button
               onClick={submitTx}
+              disabled={busy}
               className="bg-reserve-navy text-white hover:bg-reserve-navy/90"
             >
               Confirm {tx?.mode}

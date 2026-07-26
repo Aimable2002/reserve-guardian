@@ -60,19 +60,29 @@ function ReserveDetail() {
       ? `Sustain ${reserve.targetValue} days · ${formatMoney(target)}`
       : `Reach ${formatMoney(reserve.targetValue)}`;
 
-  const submitTx = () => {
+  const [busy, setBusy] = useState(false);
+
+  const submitTx = async () => {
     const v = Number(amount);
     if (!Number.isFinite(v) || v <= 0) return toast.error("Enter an amount greater than zero.");
-    if (tx === "deposit") {
-      store.depositToReserve(reserve.id, v);
-      toast.success(`Deposited ${formatMoney(v)}`);
-    } else if (tx === "withdraw") {
-      const ok = store.withdrawFromReserve(reserve.id, v);
-      if (!ok) return toast.error(`Only ${formatMoney(reserve.current)} available.`);
-      toast.success(`Withdrew ${formatMoney(v)}`);
+    setBusy(true);
+    try {
+      if (tx === "deposit") {
+        // "Deposit" here means funding this reserve from the wallet — an
+        // instant, DB-only move, not a Flutterwave charge.
+        await store.walletToReserve(reserve.id, v);
+        toast.success(`Moved ${formatMoney(v)} from Wallet`);
+      } else if (tx === "withdraw") {
+        await store.reserveToWallet(reserve.id, v);
+        toast.success(`Moved ${formatMoney(v)} to Wallet`);
+      }
+      setTx(null);
+      setAmount("");
+    } catch (e: any) {
+      toast.error(e?.message ?? `Only ${formatMoney(reserve.current)} available.`);
+    } finally {
+      setBusy(false);
     }
-    setTx(null);
-    setAmount("");
   };
 
   const submitEdit = () => {
@@ -242,8 +252,8 @@ function ReserveDetail() {
             />
           </div>
           <DialogFooter className="mt-2 grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => setTx(null)}>Cancel</Button>
-            <Button onClick={submitTx} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
+            <Button variant="outline" onClick={() => setTx(null)} disabled={busy}>Cancel</Button>
+            <Button onClick={submitTx} disabled={busy} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
               Confirm
             </Button>
           </DialogFooter>

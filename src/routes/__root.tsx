@@ -4,15 +4,20 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useNavigate,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { StoreProvider } from "../lib/store";
+import { AuthProvider, useAuth } from "../lib/auth";
 import { BottomNav } from "../components/bottom-nav";
+import { PwaUpdateBanner } from "../components/pwa-update-banner";
 
 function NotFoundComponent() {
   return (
@@ -126,11 +131,48 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <BottomNav />
-      </StoreProvider>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
+      <PwaUpdateBanner />
     </QueryClientProvider>
+  );
+}
+
+/** Redirects to /auth when there's no session, once the initial session
+ * check has resolved. /auth itself is never gated (that would infinite-loop),
+ * and the bottom nav only makes sense once a route behind the gate renders. */
+function AuthGate() {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isAuthRoute = pathname === "/auth";
+
+  useEffect(() => {
+    if (!loading && !user && !isAuthRoute) {
+      navigate({ to: "/auth", search: { redirect: pathname }, replace: true });
+    }
+  }, [loading, user, isAuthRoute, pathname, navigate]);
+
+  if (isAuthRoute) {
+    // Let /auth render immediately — it has its own loading/redirect logic
+    // for the "already signed in" case.
+    return <Outlet />;
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-reserve-bg">
+        <Loader2 className="size-6 animate-spin text-reserve-navy" />
+      </div>
+    );
+  }
+
+  return (
+    <StoreProvider>
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <Outlet />
+      <BottomNav />
+    </StoreProvider>
   );
 }

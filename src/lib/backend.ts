@@ -68,6 +68,9 @@ export async function callBackend<T>(path: string, body: unknown): Promise<T> {
 
 /* ---------- Route payload/response types ---------- */
 
+/** Card and bank_transfer are "coming soon" — the backend only accepts
+ * mobile_money right now (400 not_yet_supported for anything else). Types
+ * kept here for when those come back into scope. */
 export type CardPaymentMethod = {
   type: "card";
   card: {
@@ -95,10 +98,8 @@ export type MobileMoneyPaymentMethod = {
   };
 };
 
-export type PaymentMethod =
-  | CardPaymentMethod
-  | BankTransferPaymentMethod
-  | MobileMoneyPaymentMethod;
+/** Only mobile_money is live right now. */
+export type PaymentMethod = MobileMoneyPaymentMethod;
 
 export type FlutterwaveCustomer = {
   email: string;
@@ -118,31 +119,26 @@ export type DepositRequest = {
   currency: string;
   payment_method: PaymentMethod;
   customer: FlutterwaveCustomer;
-  redirect_url: string;
 };
 
 export type DepositResponse = {
   reference: string;
   charge_id?: string;
   status?: string;
-  next_action?: {
-    type?: string;
-    redirect_url?: string;
-    url?: string;
-    payment_instruction?: Record<string, unknown>;
-    [key: string]: unknown;
-  } | null;
 };
 
-export type Recipient =
-  | { type: "bank"; bank: { account_number: string; code: string } }
-  | {
-      type: "mobile_money";
-      mobile_money: { country_code: string; network: string; phone_number: string };
-    }
-  | { type: "wallet"; wallet: { identifier: string } };
+/** Only mobile_money is live right now — card/bank_transfer deposits and
+ * bank/wallet payouts are "coming soon" (backend returns 400 not_yet_supported
+ * for anything else), so there's nothing else to wire up yet. */
+export type MobileMoneyRecipient = {
+  type: "mobile_money";
+  name: { first: string; last: string };
+  mobile_money: { network: string; msisdn: string };
+};
 
-export type TransferRequest = { amount: number; currency: string; recipient: Recipient };
+export type Recipient = MobileMoneyRecipient;
+
+export type TransferRequest = { amount: number; currency?: string; recipient: Recipient };
 export type TransferResponse = { reference: string; transfer_id?: string; status?: string };
 
 export type MoveRequest = { reserve_id: string; amount: number };

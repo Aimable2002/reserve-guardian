@@ -4,9 +4,6 @@ import { toast, Toaster } from "sonner";
 import { ArrowLeft, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { useStore } from "@/lib/store";
-import { formatMoney } from "@/lib/reserve-data";
 
 export const Route = createFileRoute("/wallet/receive")({
   head: () => ({
@@ -43,7 +40,6 @@ function useQrGrid(seed: string) {
 }
 
 function ReceivePage() {
-  const store = useStore();
   const [request, setRequest] = useState("");
   const handle = "@fortress/you";
   const payload = request ? `${handle}?amount=${request}` : handle;
@@ -56,14 +52,6 @@ function ReceivePage() {
     } catch {
       toast.error("Could not copy.");
     }
-  };
-
-  const simulate = () => {
-    const v = Number(request);
-    if (!Number.isFinite(v) || v <= 0) return toast.error("Enter an amount to simulate.");
-    store.walletReceive("Test sender", v, "Simulated inbound");
-    toast.success(`Received ${formatMoney(v)}`);
-    setRequest("");
   };
 
   return (
@@ -106,23 +94,19 @@ function ReceivePage() {
           <Label className="text-[11px] uppercase tracking-wider text-reserve-slate">
             Request specific amount (optional)
           </Label>
-          <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-            <Input
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="1"
-              value={request}
-              onChange={(e) => setRequest(e.target.value)}
-              placeholder="0"
-              className="font-mono text-lg"
-            />
-            <Button onClick={simulate} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
-              Simulate
-            </Button>
-          </div>
+          <Input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="1"
+            value={request}
+            onChange={(e) => setRequest(e.target.value)}
+            placeholder="0"
+            className="mt-2 font-mono text-lg"
+          />
           <p className="mt-3 text-[10px] leading-relaxed text-reserve-slate">
-            "Simulate" credits your wallet with the requested amount so you can preview inbound flow.
+            Adding an amount encodes it into your shareable code above — it doesn't move any
+            money. Funds actually arrive in your wallet once a mobile money deposit clears.
           </p>
         </section>
       </div>

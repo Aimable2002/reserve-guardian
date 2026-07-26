@@ -9,47 +9,51 @@ import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/reserve-data";
 import { BackendError } from "@/lib/backend";
 import {
-  RecipientForm,
-  emptyRecipientForm,
-  buildRecipient,
-  isRecipientValid,
-  recipientLabel,
-  type RecipientFormValue,
-} from "@/components/recipient-form";
+  PaymentMethodForm,
+  emptyPaymentForm,
+  buildPaymentMethod,
+  buildCustomer,
+  isPaymentFormValid,
+  type PaymentFormValue,
+} from "@/components/payment-method-form";
 
-export const Route = createFileRoute("/wallet/send")({
+export const Route = createFileRoute("/wallet/deposit")({
   head: () => ({
     meta: [
-      { title: "Send · Wallet" },
-      { name: "description", content: "Send funds from your spendable wallet." },
-      { property: "og:title", content: "Send · Wallet" },
-      { property: "og:description", content: "Send funds from your spendable wallet." },
+      { title: "Deposit · Wallet" },
+      { name: "description", content: "Fund your wallet via mobile money." },
+      { property: "og:title", content: "Deposit · Wallet" },
+      { property: "og:description", content: "Fund your wallet via mobile money." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: SendPage,
+  component: DepositPage,
 });
 
-function SendPage() {
+function DepositPage() {
   const store = useStore();
   const navigate = useNavigate();
-  const [recipient, setRecipient] = useState<RecipientFormValue>(emptyRecipientForm);
+  const [form, setForm] = useState<PaymentFormValue>(emptyPaymentForm);
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [busy, setBusy] = useState(false);
 
   const value = Number(amount);
-  const valid = isRecipientValid(recipient) && Number.isFinite(value) && value > 0 && value <= store.wallet;
+  const valid = isPaymentFormValid(form) && Number.isFinite(value) && value > 0;
 
   const submit = async () => {
     setBusy(true);
     try {
-      await store.walletSend({ amount: value, recipient: buildRecipient(recipient) });
-      toast.success(`Sending ${formatMoney(value)} to ${recipient.firstName} ${recipient.lastName}`);
+      await store.deposit({
+        amount: value,
+        payment_method: buildPaymentMethod(form),
+        customer: buildCustomer(form),
+      });
+      toast.success("Deposit started — check your phone to approve, then confirm in-app.");
       navigate({ to: "/wallet" });
     } catch (e) {
-      toast.error(e instanceof BackendError ? e.message : "Send failed — check available balance.");
+      toast.error(e instanceof BackendError ? e.message : "Deposit failed.");
       setBusy(false);
     }
   };
@@ -65,12 +69,12 @@ function SendPage() {
             <ArrowLeft className="size-4" /> Wallet
           </Link>
           <span className="text-[11px] font-semibold uppercase tracking-widest text-reserve-slate">
-            Send
+            Deposit
           </span>
         </header>
 
         <section className="rounded-2xl bg-reserve-navy p-5 text-white">
-          <p className="text-[11px] uppercase tracking-wider text-white/60">Available</p>
+          <p className="text-[11px] uppercase tracking-wider text-white/60">Current Balance</p>
           <p className="mt-1 font-mono text-2xl font-semibold">{formatMoney(store.wallet)}</p>
         </section>
 
@@ -90,7 +94,7 @@ function SendPage() {
                 autoFocus
               />
             </div>
-            <RecipientForm value={recipient} onChange={setRecipient} />
+            <PaymentMethodForm value={form} onChange={setForm} />
             <Button
               disabled={!valid}
               onClick={() => setStep("confirm")}
@@ -101,9 +105,15 @@ function SendPage() {
           </section>
         ) : (
           <section className="mt-6 rounded-2xl border border-reserve-navy/5 bg-white p-5 shadow-sm">
-            <p className="text-[11px] uppercase tracking-wider text-reserve-slate">Confirm Send</p>
+            <p className="text-[11px] uppercase tracking-wider text-reserve-slate">Confirm Deposit</p>
             <p className="mt-3 font-mono text-3xl font-semibold">{formatMoney(value)}</p>
-            <p className="mt-1 text-sm text-reserve-slate">to {recipientLabel(recipient)}</p>
+            <p className="mt-1 text-sm text-reserve-slate">
+              via {form.network} · +{form.phoneDialCode}{form.phoneNumber}
+            </p>
+            <p className="mt-3 text-[10px] leading-relaxed text-reserve-slate">
+              You'll get a prompt on your phone to approve this payment. Your wallet updates once
+              it's confirmed.
+            </p>
             <div className="mt-6 grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setStep("form")} disabled={busy}>Back</Button>
               <Button onClick={submit} disabled={busy} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">

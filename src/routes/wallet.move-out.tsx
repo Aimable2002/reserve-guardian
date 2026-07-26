@@ -33,12 +33,19 @@ function MoveOutPage() {
   const value = Number(amount);
   const valid = !!reserve && Number.isFinite(value) && value > 0 && value <= store.wallet;
 
-  const submit = () => {
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
     if (!reserve) return;
-    const ok = store.walletToReserve(reserve.id, value);
-    if (!ok) return toast.error("Not enough in wallet.");
-    toast.success(`Moved ${formatMoney(value)} → ${reserve.name}`);
-    navigate({ to: "/wallet" });
+    setBusy(true);
+    try {
+      await store.walletToReserve(reserve.id, value);
+      toast.success(`Moved ${formatMoney(value)} → ${reserve.name}`);
+      navigate({ to: "/wallet" });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Not enough in wallet.");
+      setBusy(false);
+    }
   };
 
   return (
@@ -116,8 +123,8 @@ function MoveOutPage() {
             <p className="mt-3 font-mono text-3xl font-semibold">{formatMoney(value)}</p>
             <p className="mt-1 text-sm text-reserve-slate">Wallet → {reserve?.name}</p>
             <div className="mt-6 grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={() => setStep("form")}>Back</Button>
-              <Button onClick={submit} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
+              <Button variant="outline" onClick={() => setStep("form")} disabled={busy}>Back</Button>
+              <Button onClick={submit} disabled={busy} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
                 Confirm
               </Button>
             </div>

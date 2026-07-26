@@ -1,6 +1,6 @@
 export type ReserveTargetType = "days" | "amount";
 
-export const DEFAULT_CURRENCY = "NGN";
+export const DEFAULT_CURRENCY = "RWF";
 export const DEFAULT_MONTHLY_COST = 300000;
 
 export type Reserve = {

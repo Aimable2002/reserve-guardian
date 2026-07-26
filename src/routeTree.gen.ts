@@ -15,10 +15,12 @@ import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WalletWithdrawRouteImport } from './routes/wallet.withdraw'
 import { Route as WalletSendRouteImport } from './routes/wallet.send'
 import { Route as WalletReceiveRouteImport } from './routes/wallet.receive'
 import { Route as WalletMoveOutRouteImport } from './routes/wallet.move-out'
 import { Route as WalletMoveInRouteImport } from './routes/wallet.move-in'
+import { Route as WalletDepositRouteImport } from './routes/wallet.deposit'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
 
 const WalletRoute = WalletRouteImport.update({
@@ -51,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WalletWithdrawRoute = WalletWithdrawRouteImport.update({
+  id: '/withdraw',
+  path: '/withdraw',
+  getParentRoute: () => WalletRoute,
+} as any)
 const WalletSendRoute = WalletSendRouteImport.update({
   id: '/send',
   path: '/send',
@@ -71,6 +78,11 @@ const WalletMoveInRoute = WalletMoveInRouteImport.update({
   path: '/move-in',
   getParentRoute: () => WalletRoute,
 } as any)
+const WalletDepositRoute = WalletDepositRouteImport.update({
+  id: '/deposit',
+  path: '/deposit',
+  getParentRoute: () => WalletRoute,
+} as any)
 const ReservesIdRoute = ReservesIdRouteImport.update({
   id: '/reserves/$id',
   path: '/reserves/$id',
@@ -85,10 +97,12 @@ export interface FileRoutesByFullPath {
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/deposit': typeof WalletDepositRoute
   '/wallet/move-in': typeof WalletMoveInRoute
   '/wallet/move-out': typeof WalletMoveOutRoute
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
+  '/wallet/withdraw': typeof WalletWithdrawRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -98,10 +112,12 @@ export interface FileRoutesByTo {
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/deposit': typeof WalletDepositRoute
   '/wallet/move-in': typeof WalletMoveInRoute
   '/wallet/move-out': typeof WalletMoveOutRoute
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
+  '/wallet/withdraw': typeof WalletWithdrawRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -112,10 +128,12 @@ export interface FileRoutesById {
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
   '/reserves/$id': typeof ReservesIdRoute
+  '/wallet/deposit': typeof WalletDepositRoute
   '/wallet/move-in': typeof WalletMoveInRoute
   '/wallet/move-out': typeof WalletMoveOutRoute
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
+  '/wallet/withdraw': typeof WalletWithdrawRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,10 +145,12 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/deposit'
     | '/wallet/move-in'
     | '/wallet/move-out'
     | '/wallet/receive'
     | '/wallet/send'
+    | '/wallet/withdraw'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -140,10 +160,12 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/deposit'
     | '/wallet/move-in'
     | '/wallet/move-out'
     | '/wallet/receive'
     | '/wallet/send'
+    | '/wallet/withdraw'
   id:
     | '__root__'
     | '/'
@@ -153,10 +175,12 @@ export interface FileRouteTypes {
     | '/lending'
     | '/wallet'
     | '/reserves/$id'
+    | '/wallet/deposit'
     | '/wallet/move-in'
     | '/wallet/move-out'
     | '/wallet/receive'
     | '/wallet/send'
+    | '/wallet/withdraw'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -213,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wallet/withdraw': {
+      id: '/wallet/withdraw'
+      path: '/withdraw'
+      fullPath: '/wallet/withdraw'
+      preLoaderRoute: typeof WalletWithdrawRouteImport
+      parentRoute: typeof WalletRoute
+    }
     '/wallet/send': {
       id: '/wallet/send'
       path: '/send'
@@ -241,6 +272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletMoveInRouteImport
       parentRoute: typeof WalletRoute
     }
+    '/wallet/deposit': {
+      id: '/wallet/deposit'
+      path: '/deposit'
+      fullPath: '/wallet/deposit'
+      preLoaderRoute: typeof WalletDepositRouteImport
+      parentRoute: typeof WalletRoute
+    }
     '/reserves/$id': {
       id: '/reserves/$id'
       path: '/reserves/$id'
@@ -252,17 +290,21 @@ declare module '@tanstack/react-router' {
 }
 
 interface WalletRouteChildren {
+  WalletDepositRoute: typeof WalletDepositRoute
   WalletMoveInRoute: typeof WalletMoveInRoute
   WalletMoveOutRoute: typeof WalletMoveOutRoute
   WalletReceiveRoute: typeof WalletReceiveRoute
   WalletSendRoute: typeof WalletSendRoute
+  WalletWithdrawRoute: typeof WalletWithdrawRoute
 }
 
 const WalletRouteChildren: WalletRouteChildren = {
+  WalletDepositRoute: WalletDepositRoute,
   WalletMoveInRoute: WalletMoveInRoute,
   WalletMoveOutRoute: WalletMoveOutRoute,
   WalletReceiveRoute: WalletReceiveRoute,
   WalletSendRoute: WalletSendRoute,
+  WalletWithdrawRoute: WalletWithdrawRoute,
 }
 
 const WalletRouteWithChildren =
@@ -280,3 +322,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
