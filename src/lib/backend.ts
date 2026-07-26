@@ -19,14 +19,14 @@ async function accessToken(): Promise<string> {
   return token;
 }
 
-async function request<T>(path: string, body: unknown, token: string): Promise<{ ok: true; data: T } | { ok: false; code: string; message: string; status: number }> {
+async function request<T>(path: string, body: unknown, token: string, method: "GET" | "POST" = "POST"): Promise<{ ok: true; data: T } | { ok: false; code: string; message: string; status: number }> {
   const res = await fetch(`${BACKEND_URL}${path}`, {
-    method: "POST",
+    method,
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(body),
+    ...(method === "POST" ? { body: JSON.stringify(body) } : {}),
   });
 
   let payload: any = null;
@@ -46,12 +46,39 @@ async function request<T>(path: string, body: unknown, token: string): Promise<{
 }
 
 /**
+ * Public (unauthenticated) request against the backend — used only for the
+ * /pay/<code> routes, which by design must work for a payer with no
+ * Fortress account at all. Never attaches an Authorization header.
+ */
+async function publicRequest<T>(path: string, body: unknown, method: "GET" | "POST" = "GET"): Promise<T> {
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    ...(method === "POST" ? { body: JSON.stringify(body) } : {}),
+  });
+
+  let payload: any = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+
+  if (res.ok) return payload as T;
+  throw new BackendError(
+    payload?.error ?? "request_failed",
+    payload?.message ?? `Request failed (${res.status}).`,
+    res.status,
+  );
+}
+
+/**
  * POST to the Reserved Fund backend with the current Supabase access token.
  * On a 401 `token_expired`, refreshes the session and retries exactly once.
  */
 export async function callBackend<T>(path: string, body: unknown): Promise<T> {
   let token = await accessToken();
-  let result = await request<T>(path, body, token);
+  let result = await request<T>(path, body, token, "POST");
 
   if (!result.ok && result.status === 401 && result.code === "token_expired") {
     const { data, error } = await supabase.auth.refreshSession();
@@ -59,7 +86,28 @@ export async function callBackend<T>(path: string, body: unknown): Promise<T> {
       throw new BackendError("session_expired", "Your session expired. Please sign in again.", 401);
     }
     token = data.session.access_token;
-    result = await request<T>(path, body, token);
+    result = await request<T>(path, body, token, "POST");
+  }
+
+  if (!result.ok) throw new BackendError(result.code, result.message, result.status);
+  return result.data;
+}
+
+/**
+ * GET to the Reserved Fund backend with the current Supabase access token.
+ * Same token-refresh-and-retry behavior as callBackend.
+ */
+export async function callBackendGet<T>(path: string): Promise<T> {
+  let token = await accessToken();
+  let result = await request<T>(path, undefined, token, "GET");
+
+  if (!result.ok && result.status === 401 && result.code === "token_expired") {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
+      throw new BackendError("session_expired", "Your session expired. Please sign in again.", 401);
+    }
+    token = data.session.access_token;
+    result = await request<T>(path, undefined, token, "GET");
   }
 
   if (!result.ok) throw new BackendError(result.code, result.message, result.status);
@@ -148,10 +196,34 @@ export type MoveResponse = {
   reserve_balance: number;
 };
 
+/* ---------- Receive via link/QR (no account needed to pay) ---------- */
+
+export type ReceiveCodeResponse = { receive_code: string };
+
+export type PayeeInfo = { display_name: string; currency: string };
+
+export type PayRequest = {
+  amount: number;
+  currency?: string;
+  payment_method: PaymentMethod;
+  customer: FlutterwaveCustomer;
+};
+
+export type PayResponse = {
+  reference: string;
+  charge_id?: string;
+  status?: string;
+};
+
 export const api = {
   depositInitiate: (body: DepositRequest) => callBackend<DepositResponse>("/deposit/initiate", body),
   walletSend: (body: TransferRequest) => callBackend<TransferResponse>("/wallet/send", body),
   walletWithdraw: (body: TransferRequest) => callBackend<TransferResponse>("/wallet/withdraw", body),
   moveToReserve: (body: MoveRequest) => callBackend<MoveResponse>("/reserve/move-to", body),
   moveFromReserve: (body: MoveRequest) => callBackend<MoveResponse>("/reserve/move-from", body),
+  // Authenticated — belongs to whoever is logged in.
+  getReceiveCode: () => callBackendGet<ReceiveCodeResponse>("/wallet/receive-code"),
+  // Public — the payer never needs an account for either of these.
+  resolveReceiveCode: (code: string) => publicRequest<PayeeInfo>(`/pay/${code}`, undefined, "GET"),
+  payViaReceiveCode: (code: string, body: PayRequest) => publicRequest<PayResponse>(`/pay/${code}`, body, "POST"),
 };
