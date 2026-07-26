@@ -147,16 +147,21 @@ function AuthGate() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAuthRoute = pathname === "/auth";
+  // /pay/<code> must work for someone with no Fortress account at all —
+  // that's the whole point of the receive-link/QR flow — so it's never
+  // gated behind login, same as /auth itself.
+  const isPublicPayRoute = pathname.startsWith("/pay/");
 
   useEffect(() => {
-    if (!loading && !user && !isAuthRoute) {
+    if (!loading && !user && !isAuthRoute && !isPublicPayRoute) {
       navigate({ to: "/auth", search: { redirect: pathname }, replace: true });
     }
-  }, [loading, user, isAuthRoute, pathname, navigate]);
+  }, [loading, user, isAuthRoute, isPublicPayRoute, pathname, navigate]);
 
-  if (isAuthRoute) {
-    // Let /auth render immediately — it has its own loading/redirect logic
-    // for the "already signed in" case.
+  if (isAuthRoute || isPublicPayRoute) {
+    // Let /auth and /pay/<code> render immediately — /pay/<code> has no
+    // relationship to the logged-in session at all, and /auth handles its
+    // own loading/redirect logic for the "already signed in" case.
     return <Outlet />;
   }
 
