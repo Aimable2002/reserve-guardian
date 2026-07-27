@@ -25,6 +25,7 @@ import { Route as WalletMoveOutRouteImport } from './routes/wallet.move-out'
 import { Route as WalletMoveInRouteImport } from './routes/wallet.move-in'
 import { Route as WalletDepositRouteImport } from './routes/wallet.deposit'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
+import { Route as ReserveSettingsIdRouteImport } from './routes/reserve-settings.$id'
 import { Route as PayCodeRouteImport } from './routes/pay.$code'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 
@@ -108,6 +109,11 @@ const ReservesIdRoute = ReservesIdRouteImport.update({
   path: '/reserves/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReserveSettingsIdRoute = ReserveSettingsIdRouteImport.update({
+  id: '/reserve-settings/$id',
+  path: '/reserve-settings/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PayCodeRoute = PayCodeRouteImport.update({
   id: '/pay/$code',
   path: '/pay/$code',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reserve-settings/$id': typeof ReserveSettingsIdRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
   '/wallet/move-in': typeof WalletMoveInRoute
@@ -149,6 +156,7 @@ export interface FileRoutesByTo {
   '/lending': typeof LendingRoute
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reserve-settings/$id': typeof ReserveSettingsIdRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
   '/wallet/move-in': typeof WalletMoveInRoute
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reserve-settings/$id': typeof ReserveSettingsIdRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
   '/wallet/move-in': typeof WalletMoveInRoute
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reserve-settings/$id'
     | '/reserves/$id'
     | '/wallet/deposit'
     | '/wallet/move-in'
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/lending'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reserve-settings/$id'
     | '/reserves/$id'
     | '/wallet/deposit'
     | '/wallet/move-in'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reserve-settings/$id'
     | '/reserves/$id'
     | '/wallet/deposit'
     | '/wallet/move-in'
@@ -252,6 +264,7 @@ export interface RootRouteChildren {
   WalletRoute: typeof WalletRouteWithChildren
   InviteTokenRoute: typeof InviteTokenRoute
   PayCodeRoute: typeof PayCodeRoute
+  ReserveSettingsIdRoute: typeof ReserveSettingsIdRoute
   ReservesIdRoute: typeof ReservesIdRoute
 }
 
@@ -369,6 +382,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReservesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reserve-settings/$id': {
+      id: '/reserve-settings/$id'
+      path: '/reserve-settings/$id'
+      fullPath: '/reserve-settings/$id'
+      preLoaderRoute: typeof ReserveSettingsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pay/$code': {
       id: '/pay/$code'
       path: '/pay/$code'
@@ -420,6 +440,7 @@ const rootRouteChildren: RootRouteChildren = {
   WalletRoute: WalletRouteWithChildren,
   InviteTokenRoute: InviteTokenRoute,
   PayCodeRoute: PayCodeRoute,
+  ReserveSettingsIdRoute: ReserveSettingsIdRoute,
   ReservesIdRoute: ReservesIdRoute,
 }
 export const routeTree = rootRouteImport
