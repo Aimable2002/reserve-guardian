@@ -13,6 +13,7 @@ import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as LendingRouteImport } from './routes/lending'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ApprovalsRouteImport } from './routes/approvals'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
@@ -25,6 +26,7 @@ import { Route as WalletMoveInRouteImport } from './routes/wallet.move-in'
 import { Route as WalletDepositRouteImport } from './routes/wallet.deposit'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
 import { Route as PayCodeRouteImport } from './routes/pay.$code'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
@@ -44,6 +46,11 @@ const HistoryRoute = HistoryRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApprovalsRoute = ApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -106,15 +113,22 @@ const PayCodeRoute = PayCodeRouteImport.update({
   path: '/pay/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/analytics': typeof AnalyticsRoute
+  '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
+  '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
@@ -129,9 +143,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/analytics': typeof AnalyticsRoute
+  '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
@@ -147,10 +163,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/analytics': typeof AnalyticsRoute
+  '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
   '/wallet': typeof WalletRouteWithChildren
+  '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
@@ -167,10 +185,12 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/analytics'
+    | '/approvals'
     | '/auth'
     | '/history'
     | '/lending'
     | '/wallet'
+    | '/invite/$token'
     | '/pay/$code'
     | '/reserves/$id'
     | '/wallet/deposit'
@@ -185,9 +205,11 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/analytics'
+    | '/approvals'
     | '/auth'
     | '/history'
     | '/lending'
+    | '/invite/$token'
     | '/pay/$code'
     | '/reserves/$id'
     | '/wallet/deposit'
@@ -202,10 +224,12 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/analytics'
+    | '/approvals'
     | '/auth'
     | '/history'
     | '/lending'
     | '/wallet'
+    | '/invite/$token'
     | '/pay/$code'
     | '/reserves/$id'
     | '/wallet/deposit'
@@ -221,10 +245,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  ApprovalsRoute: typeof ApprovalsRoute
   AuthRoute: typeof AuthRoute
   HistoryRoute: typeof HistoryRoute
   LendingRoute: typeof LendingRoute
   WalletRoute: typeof WalletRouteWithChildren
+  InviteTokenRoute: typeof InviteTokenRoute
   PayCodeRoute: typeof PayCodeRoute
   ReservesIdRoute: typeof ReservesIdRoute
 }
@@ -257,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/approvals': {
+      id: '/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof ApprovalsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -343,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PayCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -373,10 +413,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   AnalyticsRoute: AnalyticsRoute,
+  ApprovalsRoute: ApprovalsRoute,
   AuthRoute: AuthRoute,
   HistoryRoute: HistoryRoute,
   LendingRoute: LendingRoute,
   WalletRoute: WalletRouteWithChildren,
+  InviteTokenRoute: InviteTokenRoute,
   PayCodeRoute: PayCodeRoute,
   ReservesIdRoute: ReservesIdRoute,
 }
