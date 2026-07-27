@@ -21,7 +21,9 @@ import {
   DEFAULT_MONTHLY_COST,
   mapLedgerEntry,
   mapReserveRow,
+  toDbTargetType,
   type LedgerEntry,
+  type MemberRole,
   type Reserve,
   type ReserveRow,
   type Transaction,
@@ -115,10 +117,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setWallet(Number(walletRes.data ?? 0));
 
       const rows = ((reservesRes.data ?? []) as ReserveRow[]).filter((r) => !r.archived);
+
+      // Roles + member counts for every visible reserve (owned OR joined).
+      const memberRows = rows.length
+        ? (
+            await supabase
+              .from("reserve_members")
+              .select("reserve_id, user_id, role")
+              .in(
+                "reserve_id",
+                rows.map((r) => r.id),
+              )
+          ).data ?? []
+        : [];
+      const counts: Record<string, number> = {};
+      const myRole: Record<string, MemberRole> = {};
+      for (const m of memberRows as { reserve_id: string; user_id: string; role: MemberRole }[]) {
+        counts[m.reserve_id] = (counts[m.reserve_id] ?? 0) + 1;
+        if (m.user_id === userId) myRole[m.reserve_id] = m.role;
+      }
+
       const balances = await Promise.all(
         rows.map((r) => supabase.rpc("reserve_balance", { p_reserve_id: r.id })),
       );
-      const mapped = rows.map((r, i) => mapReserveRow(r, Number(balances[i]?.data ?? 0)));
+      const mapped = rows.map((r, i) =>
+        mapReserveRow(
+          r,
+          Number(balances[i]?.data ?? 0),
+          r.user_id === userId ? "owner" : (myRole[r.id] ?? "viewer"),
+          Math.max(counts[r.id] ?? 1, 1),
+        ),
+      );
       setReserves(mapped);
 
       const names = Object.fromEntries(mapped.map((r) => [r.id, r.name]));
@@ -137,7 +166,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const allocated = reserves.reduce((s, r) => s + r.current, 0);
+  // Only funds the user actually controls count toward their own runway.
+  const allocated = reserves
+    .filter((r) => r.role === "owner" || r.role === "co_owner")
+    .reduce((s, r) => s + r.current, 0);
   const balance = wallet + allocated;
 
   const value = useMemo<Ctx>(
@@ -201,7 +233,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           .insert({
             user_id: userId,
             name: r.name,
-            target_type: r.targetType,
+            target_type: toDbTargetType(r.targetType),
             target_value: r.targetValue,
             currency: r.currency ?? currency,
           })
@@ -217,7 +249,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           .from("reserves")
           .update({
             ...(patch.name !== undefined ? { name: patch.name } : {}),
-            ...(patch.targetType !== undefined ? { target_type: patch.targetType } : {}),
+            ...(patch.targetType !== undefined
+              ? { target_type: toDbTargetType(patch.targetType) }
+              : {}),
             ...(patch.targetValue !== undefined ? { target_value: patch.targetValue } : {}),
           })
           .eq("id", id);
