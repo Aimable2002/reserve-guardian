@@ -1,13 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast, Toaster } from "sonner";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
-import { formatMoney, reserveProgress, targetAmount } from "@/lib/reserve-data";
+import { useAuth } from "@/lib/auth";
+import { formatMoney, reserveProgress, targetAmount, can, ROLE_LABELS } from "@/lib/reserve-data";
+import { submitWithdrawalRequest } from "@/lib/shared-reserves";
+import { usePasswordConfirm } from "@/components/password-confirm";
 
 export const Route = createFileRoute("/reserves/$id")({
   head: ({ params }) => ({
@@ -26,8 +29,10 @@ export const Route = createFileRoute("/reserves/$id")({
 function ReserveDetail() {
   const { id } = Route.useParams();
   const store = useStore();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const reserve = store.reserves.find((r) => r.id === id);
+  const pwd = usePasswordConfirm();
 
   const [tx, setTx] = useState<null | "deposit" | "withdraw">(null);
   const [amount, setAmount] = useState("");
@@ -73,8 +78,27 @@ function ReserveDetail() {
         await store.walletToReserve(reserve.id, v);
         toast.success(`Moved ${formatMoney(v)} from Wallet`);
       } else if (tx === "withdraw") {
-        await store.reserveToWallet(reserve.id, v);
-        toast.success(`Moved ${formatMoney(v)} to Wallet`);
+        await pwd.confirm();
+        if (reserve.shared) {
+          // Shared reserves route every withdrawal through the request
+          // function — the owner's own request comes back already approved.
+          const res = await submitWithdrawalRequest({
+            reserveId: reserve.id,
+            userId: user!.id,
+            amount: v,
+            currency: reserve.currency,
+            reason: "",
+          });
+          toast.success(
+            res.status === "approved"
+              ? `Withdrew ${formatMoney(v, reserve.currency)} to your wallet`
+              : "Request sent to the reserve owner for approval.",
+          );
+          await store.refresh();
+        } else {
+          await store.reserveToWallet(reserve.id, v);
+          toast.success(`Moved ${formatMoney(v)} to Wallet`);
+        }
       }
       setTx(null);
       setAmount("");
@@ -85,23 +109,39 @@ function ReserveDetail() {
     }
   };
 
-  const submitEdit = () => {
+  const submitEdit = async () => {
     const v = Number(editValue);
     if (!editName.trim()) return toast.error("Name required.");
     if (!Number.isFinite(v) || v <= 0) return toast.error("Target must be > 0.");
-    store.updateReserve(reserve.id, { name: editName.trim(), targetType: editType, targetValue: v });
-    toast.success("Reserve updated.");
-    setEditOpen(false);
+    try {
+      await store.updateReserve(reserve.id, {
+        name: editName.trim(),
+        targetType: editType,
+        targetValue: v,
+      });
+      toast.success("Reserve updated.");
+      setEditOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not update that reserve.");
+    }
   };
 
-  const doDelete = () => {
+  const doDelete = async () => {
     if (reserve.current > 0) {
       toast.error("Withdraw all funds before deleting this reserve.");
       return;
     }
-    store.deleteReserve(reserve.id);
-    toast.success("Reserve deleted.");
-    navigate({ to: "/" });
+    if (reserve.memberCount > 1) {
+      toast.error("Transfer ownership or remove the other members first.");
+      return;
+    }
+    try {
+      await store.deleteReserve(reserve.id);
+      toast.success("Reserve deleted.");
+      navigate({ to: "/" });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not delete that reserve.");
+    }
   };
 
   return (
@@ -114,21 +154,34 @@ function ReserveDetail() {
           <Link to="/" className="inline-flex items-center gap-1 text-xs font-semibold text-reserve-slate active:opacity-70">
             <ArrowLeft className="size-4" /> Vault
           </Link>
-          <button
-            onClick={() => {
-              setEditName(reserve.name);
-              setEditType(reserve.targetType);
-              setEditValue(String(reserve.targetValue));
-              setEditOpen(true);
-            }}
-            className="inline-flex items-center gap-1 rounded-full bg-reserve-navy/5 px-3 py-1 text-[11px] font-semibold text-reserve-navy active:scale-95"
-          >
-            <Pencil className="size-3" /> Edit
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/reserve-settings/$id"
+              params={{ id: reserve.id }}
+              className="inline-flex items-center gap-1 rounded-full bg-reserve-navy/5 px-3 py-1 text-[11px] font-semibold text-reserve-navy active:scale-95"
+            >
+              <Users className="size-3" /> Members
+            </Link>
+            {can.manage(reserve.role) && (
+              <button
+                onClick={() => {
+                  setEditName(reserve.name);
+                  setEditType(reserve.targetType);
+                  setEditValue(String(reserve.targetValue));
+                  setEditOpen(true);
+                }}
+                className="inline-flex items-center gap-1 rounded-full bg-reserve-navy/5 px-3 py-1 text-[11px] font-semibold text-reserve-navy active:scale-95"
+              >
+                <Pencil className="size-3" /> Edit
+              </button>
+            )}
+          </div>
         </header>
 
         <section className="rounded-3xl bg-reserve-navy p-7 text-white shadow-2xl shadow-reserve-navy/20">
-          <p className="text-[11px] uppercase tracking-widest text-white/60">Reserve</p>
+          <p className="text-[11px] uppercase tracking-widest text-white/60">
+            {reserve.shared ? `Shared reserve · ${ROLE_LABELS[reserve.role]}` : "Reserve"}
+          </p>
           <h1 className="mt-1 text-2xl font-semibold">{reserve.name}</h1>
           <p className="mt-1 text-xs text-white/60">{targetLabel}</p>
           <div className="mt-6">
@@ -154,15 +207,17 @@ function ReserveDetail() {
         <div className="mt-6 grid grid-cols-2 gap-3">
           <button
             onClick={() => setTx("deposit")}
-            className="rounded-2xl border border-reserve-navy/5 bg-white py-4 text-sm font-semibold shadow-sm active:scale-95"
+            disabled={!can.deposit(reserve.role)}
+            className="rounded-2xl border border-reserve-navy/5 bg-white py-4 text-sm font-semibold shadow-sm active:scale-95 disabled:opacity-40"
           >
             Deposit
           </button>
           <button
             onClick={() => setTx("withdraw")}
-            className="rounded-2xl border border-reserve-navy/5 bg-white py-4 text-sm font-semibold shadow-sm active:scale-95"
+            disabled={!can.requestWithdrawal(reserve.role)}
+            className="rounded-2xl border border-reserve-navy/5 bg-white py-4 text-sm font-semibold shadow-sm active:scale-95 disabled:opacity-40"
           >
-            Withdraw
+            {reserve.shared && reserve.role !== "owner" ? "Request withdrawal" : "Withdraw"}
           </button>
         </div>
 
@@ -216,11 +271,16 @@ function ReserveDetail() {
         <section className="mt-8">
           <button
             onClick={doDelete}
-            disabled={reserve.current > 0}
+            disabled={reserve.current > 0 || !can.manage(reserve.role) || reserve.memberCount > 1}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/5 py-4 text-sm font-semibold text-destructive transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Trash2 className="size-4" /> Delete reserve
           </button>
+          {can.manage(reserve.role) && reserve.memberCount > 1 && (
+            <p className="mt-2 text-center text-[11px] text-reserve-slate">
+              Transfer ownership or remove the other members before deleting.
+            </p>
+          )}
           {reserve.current > 0 && (
             <p className="mt-2 text-center text-[11px] text-reserve-slate">
               Withdraw the remaining {formatMoney(reserve.current)} before deleting.
@@ -251,9 +311,14 @@ function ReserveDetail() {
               autoFocus
             />
           </div>
+          {tx === "withdraw" && <div className="mt-4">{pwd.field}</div>}
           <DialogFooter className="mt-2 grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => setTx(null)} disabled={busy}>Cancel</Button>
-            <Button onClick={submitTx} disabled={busy} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
+            <Button
+              onClick={submitTx}
+              disabled={busy || (tx === "withdraw" && !pwd.ready)}
+              className="bg-reserve-navy text-white hover:bg-reserve-navy/90"
+            >
               Confirm
             </Button>
           </DialogFooter>
