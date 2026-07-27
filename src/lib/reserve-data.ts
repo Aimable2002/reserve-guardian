@@ -1,5 +1,18 @@
 export type ReserveTargetType = "days" | "amount";
 
+/** Roles on a shared reserve, most-privileged first. */
+export type MemberRole = "owner" | "co_owner" | "contributor" | "viewer" | "beneficiary";
+
+/** `reserves.target_type` has a check constraint allowing only these two
+ * values. The UI speaks "days"/"amount", so map at the DB boundary. */
+export function toDbTargetType(t: ReserveTargetType): string {
+  return t === "days" ? "survival_days" : "amount";
+}
+
+export function fromDbTargetType(t: string | null): ReserveTargetType {
+  return t === "survival_days" || t === "days" ? "days" : "amount";
+}
+
 export const DEFAULT_CURRENCY = "RWF";
 export const DEFAULT_MONTHLY_COST = 300000;
 
@@ -11,6 +24,28 @@ export type Reserve = {
   current: number; // balance from the reserve_balance RPC
   currency: string;
   archived?: boolean;
+  ownerId: string;
+  /** The signed-in user's role on this reserve. */
+  role: MemberRole;
+  /** True when the reserve has members other than the owner. */
+  shared: boolean;
+  memberCount: number;
+};
+
+export const ROLE_LABELS: Record<MemberRole, string> = {
+  owner: "Owner",
+  co_owner: "Co-owner",
+  contributor: "Contributor",
+  viewer: "Viewer",
+  beneficiary: "Beneficiary",
+};
+
+export const can = {
+  deposit: (r: MemberRole) => r === "owner" || r === "co_owner" || r === "contributor",
+  requestWithdrawal: (r: MemberRole) => r === "owner" || r === "co_owner" || r === "beneficiary",
+  review: (r: MemberRole) => r === "owner",
+  invite: (r: MemberRole) => r === "owner" || r === "co_owner",
+  manage: (r: MemberRole) => r === "owner",
 };
 
 export type TxKind =
@@ -60,6 +95,7 @@ export type LedgerEntry = {
 export type ReserveRow = {
   id: string;
   name: string;
+  user_id: string;
   target_type: string | null;
   target_value: number | string | null;
   currency: string | null;
@@ -67,15 +103,24 @@ export type ReserveRow = {
   created_at: string;
 };
 
-export function mapReserveRow(row: ReserveRow, balance: number): Reserve {
+export function mapReserveRow(
+  row: ReserveRow,
+  balance: number,
+  role: MemberRole,
+  memberCount: number,
+): Reserve {
   return {
     id: row.id,
     name: row.name,
-    targetType: row.target_type === "days" ? "days" : "amount",
+    targetType: fromDbTargetType(row.target_type),
     targetValue: Number(row.target_value ?? 0),
     current: balance,
     currency: row.currency ?? DEFAULT_CURRENCY,
     archived: !!row.archived,
+    ownerId: row.user_id,
+    role,
+    shared: memberCount > 1,
+    memberCount,
   };
 }
 

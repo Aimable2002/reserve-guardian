@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ArrowDownRight, ArrowUpRight, Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { HeaderMenu } from "@/components/header-menu";
 import {
   computeRunway,
   formatMoney,
@@ -141,17 +142,24 @@ function Index() {
     toast.success("Runway recalibrated.");
   };
 
-  const submitCreate = () => {
+  const submitCreate = async () => {
     const name = newName.trim();
     const val = Number(newValue);
     if (!name) return toast.error("Give the reserve a name.");
     if (!Number.isFinite(val) || val <= 0) return toast.error("Target must be greater than zero.");
-    store.createReserve({ name, targetType: newType, targetValue: val });
-    toast.success(`Created reserve "${name}"`);
-    setNewName("");
-    setNewValue("");
-    setNewType("amount");
-    setCreateOpen(false);
+    setBusy(true);
+    try {
+      await store.createReserve({ name, targetType: newType, targetValue: val });
+      toast.success(`Created reserve "${name}"`);
+      setNewName("");
+      setNewValue("");
+      setNewType("amount");
+      setCreateOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not create that reserve.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const allocateTargets = reserves;
@@ -170,9 +178,7 @@ function Index() {
             </h1>
             <p className="truncate text-lg font-medium">Personal Ledger</p>
           </div>
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-reserve-navy/10 bg-reserve-navy/5">
-            <div className="size-6 rounded-full bg-gradient-to-br from-reserve-emerald to-reserve-navy" />
-          </div>
+          <HeaderMenu />
         </header>
 
         {/* Balance Hero */}
@@ -307,7 +313,14 @@ function Index() {
               >
                 <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
                   <div className="min-w-0">
-                    <h4 className="truncate font-medium">{r.name}</h4>
+                    <h4 className="flex items-center gap-2 truncate font-medium">
+                      <span className="truncate">{r.name}</span>
+                      {r.shared && (
+                        <span className="shrink-0 rounded-full bg-reserve-navy/5 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-reserve-slate">
+                          Shared
+                        </span>
+                      )}
+                    </h4>
                     <p className="text-[11px] text-reserve-slate">{targetLabel}</p>
                   </div>
                   <span
@@ -503,6 +516,7 @@ function Index() {
             </Button>
             <Button
               onClick={submitCreate}
+              disabled={busy}
               className="bg-reserve-navy text-white hover:bg-reserve-navy/90"
             >
               Create

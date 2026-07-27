@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { formatMoney } from "@/lib/reserve-data";
 import { BackendError } from "@/lib/backend";
+import { usePasswordConfirm } from "@/components/password-confirm";
 import {
   RecipientForm,
   emptyRecipientForm,
@@ -38,6 +39,7 @@ function WithdrawPage() {
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<"form" | "confirm">("form");
   const [busy, setBusy] = useState(false);
+  const pwd = usePasswordConfirm();
 
   const value = Number(amount);
   const valid = isRecipientValid(recipient) && Number.isFinite(value) && value > 0 && value <= store.wallet;
@@ -45,6 +47,7 @@ function WithdrawPage() {
   const submit = async () => {
     setBusy(true);
     try {
+      await pwd.confirm();
       await store.walletWithdraw({ amount: value, recipient: buildRecipient(recipient) });
       toast.success(`Withdrawing ${formatMoney(value)} to ${recipient.firstName} ${recipient.lastName}`);
       navigate({ to: "/wallet" });
@@ -107,9 +110,10 @@ function WithdrawPage() {
             <p className="text-[11px] uppercase tracking-wider text-reserve-slate">Confirm Withdrawal</p>
             <p className="mt-3 font-mono text-3xl font-semibold">{formatMoney(value)}</p>
             <p className="mt-1 text-sm text-reserve-slate">to {recipientLabel(recipient)}</p>
-            <div className="mt-6 grid grid-cols-2 gap-2">
+            <div className="mt-6">{pwd.field}</div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <Button variant="outline" onClick={() => setStep("form")} disabled={busy}>Back</Button>
-              <Button onClick={submit} disabled={busy} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
+              <Button onClick={submit} disabled={busy || !pwd.ready} className="bg-reserve-navy text-white hover:bg-reserve-navy/90">
                 {busy && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Confirm
               </Button>
