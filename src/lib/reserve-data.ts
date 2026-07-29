@@ -48,6 +48,36 @@ export const can = {
   manage: (r: MemberRole) => r === "owner",
 };
 
+/** Human wording for each permission in `can`, in the order shown to users. */
+const PERMISSION_PHRASES: { key: keyof typeof can; phrase: string }[] = [
+  { key: "deposit", phrase: "add funds" },
+  { key: "requestWithdrawal", phrase: "request withdrawals" },
+  { key: "review", phrase: "approve withdrawal requests" },
+  { key: "invite", phrase: "invite members" },
+  { key: "manage", phrase: "manage roles and ownership" },
+];
+
+function joinList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+/** Derived strictly from `can`, so descriptions can never drift from the
+ * actual permission checks. */
+export function roleDescription(role: MemberRole): string {
+  const allowed = PERMISSION_PHRASES.filter((p) => can[p.key](role)).map((p) => p.phrase);
+  if (allowed.length === 0) return "Can view balances and activity only.";
+  return `Can view balances, ${joinList(allowed)}.`;
+}
+
+export const ROLE_DESCRIPTIONS: Record<MemberRole, string> = {
+  owner: roleDescription("owner"),
+  co_owner: roleDescription("co_owner"),
+  contributor: roleDescription("contributor"),
+  viewer: roleDescription("viewer"),
+  beneficiary: roleDescription("beneficiary"),
+};
+
 export type TxKind =
   | "deposit"
   | "withdraw"
