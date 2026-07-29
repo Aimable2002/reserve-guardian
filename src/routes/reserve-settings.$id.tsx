@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
-import { ROLE_LABELS, can, type MemberRole } from "@/lib/reserve-data";
+import { ROLE_DESCRIPTIONS, ROLE_LABELS, can, type MemberRole } from "@/lib/reserve-data";
 import {
   changeMemberRole,
   generateInvite,
@@ -267,6 +267,9 @@ function ReserveSettings() {
                     </select>
                   )}
                 </div>
+                <p className="mt-2 text-[11px] leading-relaxed text-reserve-slate">
+                  {ROLE_DESCRIPTIONS[m.role]}
+                </p>
                 {can.manage(role) && !isOwner && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {m.role === "co_owner" && (
@@ -318,6 +321,9 @@ function ReserveSettings() {
                   </option>
                 ))}
               </select>
+              <p className="mt-2 text-[11px] leading-relaxed text-reserve-slate">
+                {ROLE_DESCRIPTIONS[inviteRole]}
+              </p>
             </div>
             <div>
               <Label className="text-[11px] uppercase tracking-wider text-reserve-slate">
@@ -367,6 +373,9 @@ function ReserveSettings() {
                   >
                     <div className="min-w-0">
                       <p className="text-[11px] font-medium">{ROLE_LABELS[i.role]}</p>
+                      <p className="text-[10px] leading-relaxed text-reserve-slate">
+                        {ROLE_DESCRIPTIONS[i.role]}
+                      </p>
                       <p className="text-[10px] text-reserve-slate">
                         Expires {new Date(i.expires_at).toLocaleString()}
                       </p>
