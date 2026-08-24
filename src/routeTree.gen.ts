@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as LendingRouteImport } from './routes/lending'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -18,6 +19,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WalletIndexRouteImport } from './routes/wallet.index'
+import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as WalletWithdrawRouteImport } from './routes/wallet.withdraw'
 import { Route as WalletSendRouteImport } from './routes/wallet.send'
 import { Route as WalletReceiveRouteImport } from './routes/wallet.receive'
@@ -26,12 +28,25 @@ import { Route as WalletMoveInRouteImport } from './routes/wallet.move-in'
 import { Route as WalletDepositRouteImport } from './routes/wallet.deposit'
 import { Route as ReservesIdRouteImport } from './routes/reserves.$id'
 import { Route as ReserveSettingsIdRouteImport } from './routes/reserve-settings.$id'
+import { Route as ReportsTrialBalanceRouteImport } from './routes/reports.trial-balance'
+import { Route as ReportsJournalRouteImport } from './routes/reports.journal'
+import { Route as ReportsIncomeStatementRouteImport } from './routes/reports.income-statement'
+import { Route as ReportsGeneralLedgerRouteImport } from './routes/reports.general-ledger'
+import { Route as ReportsFinancialReportRouteImport } from './routes/reports.financial-report'
+import { Route as ReportsEquityRouteImport } from './routes/reports.equity'
+import { Route as ReportsCashFlowRouteImport } from './routes/reports.cash-flow'
+import { Route as ReportsBalanceSheetRouteImport } from './routes/reports.balance-sheet'
 import { Route as PayCodeRouteImport } from './routes/pay.$code'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LendingRoute = LendingRouteImport.update({
@@ -74,6 +89,11 @@ const WalletIndexRoute = WalletIndexRouteImport.update({
   path: '/',
   getParentRoute: () => WalletRoute,
 } as any)
+const ReportsIndexRoute = ReportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReportsRoute,
+} as any)
 const WalletWithdrawRoute = WalletWithdrawRouteImport.update({
   id: '/withdraw',
   path: '/withdraw',
@@ -114,6 +134,46 @@ const ReserveSettingsIdRoute = ReserveSettingsIdRouteImport.update({
   path: '/reserve-settings/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsTrialBalanceRoute = ReportsTrialBalanceRouteImport.update({
+  id: '/trial-balance',
+  path: '/trial-balance',
+  getParentRoute: () => ReportsRoute,
+} as any)
+const ReportsJournalRoute = ReportsJournalRouteImport.update({
+  id: '/journal',
+  path: '/journal',
+  getParentRoute: () => ReportsRoute,
+} as any)
+const ReportsIncomeStatementRoute = ReportsIncomeStatementRouteImport.update({
+  id: '/income-statement',
+  path: '/income-statement',
+  getParentRoute: () => ReportsRoute,
+} as any)
+const ReportsGeneralLedgerRoute = ReportsGeneralLedgerRouteImport.update({
+  id: '/general-ledger',
+  path: '/general-ledger',
+  getParentRoute: () => ReportsRoute,
+} as any)
+const ReportsFinancialReportRoute = ReportsFinancialReportRouteImport.update({
+  id: '/financial-report',
+  path: '/financial-report',
+  getParentRoute: () => ReportsRoute,
+} as any)
+const ReportsEquityRoute = ReportsEquityRouteImport.update({
+  id: '/equity',
+  path: '/equity',
+  getParentRoute: () => ReportsRoute,
+} as any)
+const ReportsCashFlowRoute = ReportsCashFlowRouteImport.update({
+  id: '/cash-flow',
+  path: '/cash-flow',
+  getParentRoute: () => ReportsRoute,
+} as any)
+const ReportsBalanceSheetRoute = ReportsBalanceSheetRouteImport.update({
+  id: '/balance-sheet',
+  path: '/balance-sheet',
+  getParentRoute: () => ReportsRoute,
+} as any)
 const PayCodeRoute = PayCodeRouteImport.update({
   id: '/pay/$code',
   path: '/pay/$code',
@@ -133,9 +193,18 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/reports': typeof ReportsRouteWithChildren
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
+  '/reports/cash-flow': typeof ReportsCashFlowRoute
+  '/reports/equity': typeof ReportsEquityRoute
+  '/reports/financial-report': typeof ReportsFinancialReportRoute
+  '/reports/general-ledger': typeof ReportsGeneralLedgerRoute
+  '/reports/income-statement': typeof ReportsIncomeStatementRoute
+  '/reports/journal': typeof ReportsJournalRoute
+  '/reports/trial-balance': typeof ReportsTrialBalanceRoute
   '/reserve-settings/$id': typeof ReserveSettingsIdRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
@@ -144,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/withdraw': typeof WalletWithdrawRoute
+  '/reports/': typeof ReportsIndexRoute
   '/wallet/': typeof WalletIndexRoute
 }
 export interface FileRoutesByTo {
@@ -156,6 +226,14 @@ export interface FileRoutesByTo {
   '/lending': typeof LendingRoute
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
+  '/reports/cash-flow': typeof ReportsCashFlowRoute
+  '/reports/equity': typeof ReportsEquityRoute
+  '/reports/financial-report': typeof ReportsFinancialReportRoute
+  '/reports/general-ledger': typeof ReportsGeneralLedgerRoute
+  '/reports/income-statement': typeof ReportsIncomeStatementRoute
+  '/reports/journal': typeof ReportsJournalRoute
+  '/reports/trial-balance': typeof ReportsTrialBalanceRoute
   '/reserve-settings/$id': typeof ReserveSettingsIdRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
@@ -164,6 +242,7 @@ export interface FileRoutesByTo {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/withdraw': typeof WalletWithdrawRoute
+  '/reports': typeof ReportsIndexRoute
   '/wallet': typeof WalletIndexRoute
 }
 export interface FileRoutesById {
@@ -175,9 +254,18 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/reports': typeof ReportsRouteWithChildren
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
+  '/reports/cash-flow': typeof ReportsCashFlowRoute
+  '/reports/equity': typeof ReportsEquityRoute
+  '/reports/financial-report': typeof ReportsFinancialReportRoute
+  '/reports/general-ledger': typeof ReportsGeneralLedgerRoute
+  '/reports/income-statement': typeof ReportsIncomeStatementRoute
+  '/reports/journal': typeof ReportsJournalRoute
+  '/reports/trial-balance': typeof ReportsTrialBalanceRoute
   '/reserve-settings/$id': typeof ReserveSettingsIdRoute
   '/reserves/$id': typeof ReservesIdRoute
   '/wallet/deposit': typeof WalletDepositRoute
@@ -186,6 +274,7 @@ export interface FileRoutesById {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/withdraw': typeof WalletWithdrawRoute
+  '/reports/': typeof ReportsIndexRoute
   '/wallet/': typeof WalletIndexRoute
 }
 export interface FileRouteTypes {
@@ -198,9 +287,18 @@ export interface FileRouteTypes {
     | '/auth'
     | '/history'
     | '/lending'
+    | '/reports'
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reports/balance-sheet'
+    | '/reports/cash-flow'
+    | '/reports/equity'
+    | '/reports/financial-report'
+    | '/reports/general-ledger'
+    | '/reports/income-statement'
+    | '/reports/journal'
+    | '/reports/trial-balance'
     | '/reserve-settings/$id'
     | '/reserves/$id'
     | '/wallet/deposit'
@@ -209,6 +307,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/withdraw'
+    | '/reports/'
     | '/wallet/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -221,6 +320,14 @@ export interface FileRouteTypes {
     | '/lending'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reports/balance-sheet'
+    | '/reports/cash-flow'
+    | '/reports/equity'
+    | '/reports/financial-report'
+    | '/reports/general-ledger'
+    | '/reports/income-statement'
+    | '/reports/journal'
+    | '/reports/trial-balance'
     | '/reserve-settings/$id'
     | '/reserves/$id'
     | '/wallet/deposit'
@@ -229,6 +336,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/withdraw'
+    | '/reports'
     | '/wallet'
   id:
     | '__root__'
@@ -239,9 +347,18 @@ export interface FileRouteTypes {
     | '/auth'
     | '/history'
     | '/lending'
+    | '/reports'
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reports/balance-sheet'
+    | '/reports/cash-flow'
+    | '/reports/equity'
+    | '/reports/financial-report'
+    | '/reports/general-ledger'
+    | '/reports/income-statement'
+    | '/reports/journal'
+    | '/reports/trial-balance'
     | '/reserve-settings/$id'
     | '/reserves/$id'
     | '/wallet/deposit'
@@ -250,6 +367,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/withdraw'
+    | '/reports/'
     | '/wallet/'
   fileRoutesById: FileRoutesById
 }
@@ -261,6 +379,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   HistoryRoute: typeof HistoryRoute
   LendingRoute: typeof LendingRoute
+  ReportsRoute: typeof ReportsRouteWithChildren
   WalletRoute: typeof WalletRouteWithChildren
   InviteTokenRoute: typeof InviteTokenRoute
   PayCodeRoute: typeof PayCodeRoute
@@ -275,6 +394,13 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/wallet'
       preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lending': {
@@ -333,6 +459,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletIndexRouteImport
       parentRoute: typeof WalletRoute
     }
+    '/reports/': {
+      id: '/reports/'
+      path: '/'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof ReportsRoute
+    }
     '/wallet/withdraw': {
       id: '/wallet/withdraw'
       path: '/withdraw'
@@ -389,6 +522,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReserveSettingsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports/trial-balance': {
+      id: '/reports/trial-balance'
+      path: '/trial-balance'
+      fullPath: '/reports/trial-balance'
+      preLoaderRoute: typeof ReportsTrialBalanceRouteImport
+      parentRoute: typeof ReportsRoute
+    }
+    '/reports/journal': {
+      id: '/reports/journal'
+      path: '/journal'
+      fullPath: '/reports/journal'
+      preLoaderRoute: typeof ReportsJournalRouteImport
+      parentRoute: typeof ReportsRoute
+    }
+    '/reports/income-statement': {
+      id: '/reports/income-statement'
+      path: '/income-statement'
+      fullPath: '/reports/income-statement'
+      preLoaderRoute: typeof ReportsIncomeStatementRouteImport
+      parentRoute: typeof ReportsRoute
+    }
+    '/reports/general-ledger': {
+      id: '/reports/general-ledger'
+      path: '/general-ledger'
+      fullPath: '/reports/general-ledger'
+      preLoaderRoute: typeof ReportsGeneralLedgerRouteImport
+      parentRoute: typeof ReportsRoute
+    }
+    '/reports/financial-report': {
+      id: '/reports/financial-report'
+      path: '/financial-report'
+      fullPath: '/reports/financial-report'
+      preLoaderRoute: typeof ReportsFinancialReportRouteImport
+      parentRoute: typeof ReportsRoute
+    }
+    '/reports/equity': {
+      id: '/reports/equity'
+      path: '/equity'
+      fullPath: '/reports/equity'
+      preLoaderRoute: typeof ReportsEquityRouteImport
+      parentRoute: typeof ReportsRoute
+    }
+    '/reports/cash-flow': {
+      id: '/reports/cash-flow'
+      path: '/cash-flow'
+      fullPath: '/reports/cash-flow'
+      preLoaderRoute: typeof ReportsCashFlowRouteImport
+      parentRoute: typeof ReportsRoute
+    }
+    '/reports/balance-sheet': {
+      id: '/reports/balance-sheet'
+      path: '/balance-sheet'
+      fullPath: '/reports/balance-sheet'
+      preLoaderRoute: typeof ReportsBalanceSheetRouteImport
+      parentRoute: typeof ReportsRoute
+    }
     '/pay/$code': {
       id: '/pay/$code'
       path: '/pay/$code'
@@ -405,6 +594,33 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ReportsRouteChildren {
+  ReportsBalanceSheetRoute: typeof ReportsBalanceSheetRoute
+  ReportsCashFlowRoute: typeof ReportsCashFlowRoute
+  ReportsEquityRoute: typeof ReportsEquityRoute
+  ReportsFinancialReportRoute: typeof ReportsFinancialReportRoute
+  ReportsGeneralLedgerRoute: typeof ReportsGeneralLedgerRoute
+  ReportsIncomeStatementRoute: typeof ReportsIncomeStatementRoute
+  ReportsJournalRoute: typeof ReportsJournalRoute
+  ReportsTrialBalanceRoute: typeof ReportsTrialBalanceRoute
+  ReportsIndexRoute: typeof ReportsIndexRoute
+}
+
+const ReportsRouteChildren: ReportsRouteChildren = {
+  ReportsBalanceSheetRoute: ReportsBalanceSheetRoute,
+  ReportsCashFlowRoute: ReportsCashFlowRoute,
+  ReportsEquityRoute: ReportsEquityRoute,
+  ReportsFinancialReportRoute: ReportsFinancialReportRoute,
+  ReportsGeneralLedgerRoute: ReportsGeneralLedgerRoute,
+  ReportsIncomeStatementRoute: ReportsIncomeStatementRoute,
+  ReportsJournalRoute: ReportsJournalRoute,
+  ReportsTrialBalanceRoute: ReportsTrialBalanceRoute,
+  ReportsIndexRoute: ReportsIndexRoute,
+}
+
+const ReportsRouteWithChildren =
+  ReportsRoute._addFileChildren(ReportsRouteChildren)
 
 interface WalletRouteChildren {
   WalletDepositRoute: typeof WalletDepositRoute
@@ -437,6 +653,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   HistoryRoute: HistoryRoute,
   LendingRoute: LendingRoute,
+  ReportsRoute: ReportsRouteWithChildren,
   WalletRoute: WalletRouteWithChildren,
   InviteTokenRoute: InviteTokenRoute,
   PayCodeRoute: PayCodeRoute,
@@ -446,3 +663,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
