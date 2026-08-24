@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as LendingRouteImport } from './routes/lending'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -18,6 +19,7 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WalletIndexRouteImport } from './routes/wallet.index'
+import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as WalletWithdrawRouteImport } from './routes/wallet.withdraw'
 import { Route as WalletSendRouteImport } from './routes/wallet.send'
 import { Route as WalletReceiveRouteImport } from './routes/wallet.receive'
@@ -32,6 +34,11 @@ import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LendingRoute = LendingRouteImport.update({
@@ -73,6 +80,11 @@ const WalletIndexRoute = WalletIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => WalletRoute,
+} as any)
+const ReportsIndexRoute = ReportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReportsRoute,
 } as any)
 const WalletWithdrawRoute = WalletWithdrawRouteImport.update({
   id: '/withdraw',
@@ -133,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/reports': typeof ReportsRouteWithChildren
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
@@ -144,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/withdraw': typeof WalletWithdrawRoute
+  '/reports/': typeof ReportsIndexRoute
   '/wallet/': typeof WalletIndexRoute
 }
 export interface FileRoutesByTo {
@@ -164,6 +178,7 @@ export interface FileRoutesByTo {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/withdraw': typeof WalletWithdrawRoute
+  '/reports': typeof ReportsIndexRoute
   '/wallet': typeof WalletIndexRoute
 }
 export interface FileRoutesById {
@@ -175,6 +190,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/history': typeof HistoryRoute
   '/lending': typeof LendingRoute
+  '/reports': typeof ReportsRouteWithChildren
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
@@ -186,6 +202,7 @@ export interface FileRoutesById {
   '/wallet/receive': typeof WalletReceiveRoute
   '/wallet/send': typeof WalletSendRoute
   '/wallet/withdraw': typeof WalletWithdrawRoute
+  '/reports/': typeof ReportsIndexRoute
   '/wallet/': typeof WalletIndexRoute
 }
 export interface FileRouteTypes {
@@ -198,6 +215,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/history'
     | '/lending'
+    | '/reports'
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
@@ -209,6 +227,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/withdraw'
+    | '/reports/'
     | '/wallet/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -229,6 +248,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/withdraw'
+    | '/reports'
     | '/wallet'
   id:
     | '__root__'
@@ -239,6 +259,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/history'
     | '/lending'
+    | '/reports'
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
@@ -250,6 +271,7 @@ export interface FileRouteTypes {
     | '/wallet/receive'
     | '/wallet/send'
     | '/wallet/withdraw'
+    | '/reports/'
     | '/wallet/'
   fileRoutesById: FileRoutesById
 }
@@ -261,6 +283,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   HistoryRoute: typeof HistoryRoute
   LendingRoute: typeof LendingRoute
+  ReportsRoute: typeof ReportsRouteWithChildren
   WalletRoute: typeof WalletRouteWithChildren
   InviteTokenRoute: typeof InviteTokenRoute
   PayCodeRoute: typeof PayCodeRoute
@@ -275,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/wallet'
       fullPath: '/wallet'
       preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lending': {
@@ -332,6 +362,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/wallet/'
       preLoaderRoute: typeof WalletIndexRouteImport
       parentRoute: typeof WalletRoute
+    }
+    '/reports/': {
+      id: '/reports/'
+      path: '/'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof ReportsRoute
     }
     '/wallet/withdraw': {
       id: '/wallet/withdraw'
@@ -406,6 +443,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ReportsRouteChildren {
+  ReportsIndexRoute: typeof ReportsIndexRoute
+}
+
+const ReportsRouteChildren: ReportsRouteChildren = {
+  ReportsIndexRoute: ReportsIndexRoute,
+}
+
+const ReportsRouteWithChildren =
+  ReportsRoute._addFileChildren(ReportsRouteChildren)
+
 interface WalletRouteChildren {
   WalletDepositRoute: typeof WalletDepositRoute
   WalletMoveInRoute: typeof WalletMoveInRoute
@@ -437,6 +485,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   HistoryRoute: HistoryRoute,
   LendingRoute: LendingRoute,
+  ReportsRoute: ReportsRouteWithChildren,
   WalletRoute: WalletRouteWithChildren,
   InviteTokenRoute: InviteTokenRoute,
   PayCodeRoute: PayCodeRoute,
