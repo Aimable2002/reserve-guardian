@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MoreVertical, User, ShieldCheck, LogOut } from "lucide-react";
+import { MoreVertical, User, ShieldCheck, LogOut, FileBarChart2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +38,11 @@ export function HeaderMenu() {
         <DropdownMenuItem asChild>
           <Link to="/approvals" className="cursor-pointer">
             <ShieldCheck className="mr-2 size-4" /> Withdrawal approvals
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/reports" className="cursor-pointer">
+            <FileBarChart2 className="mr-2 size-4" /> Financial reports
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
