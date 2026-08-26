@@ -61,7 +61,7 @@ function ReportsLayout() {
           ))}
         </nav>
 
-        <main className="min-w-0 flex-1 pb-16">
+        <main className="min-w-0 flex-1 pb-32">
           <Outlet />
         </main>
       </div>
