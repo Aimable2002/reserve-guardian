@@ -154,17 +154,14 @@ function AuthGate() {
   // An invited person may not have an account yet — the invite screen has to
   // render so it can send them to /auth and bring them back.
   const isInviteRoute = pathname.startsWith("/invite/");
-  // /reports is a standalone UI-only prototype on hardcoded mock data — it
-  // reads nothing from the session or the store, so it renders ungated.
-  const isReportsRoute = pathname.startsWith("/reports");
 
   useEffect(() => {
-    if (!loading && !user && !isAuthRoute && !isPublicPayRoute && !isInviteRoute && !isReportsRoute) {
+    if (!loading && !user && !isAuthRoute && !isPublicPayRoute && !isInviteRoute) {
       navigate({ to: "/auth", search: { redirect: pathname }, replace: true });
     }
-  }, [loading, user, isAuthRoute, isPublicPayRoute, isInviteRoute, isReportsRoute, pathname, navigate]);
+  }, [loading, user, isAuthRoute, isPublicPayRoute, isInviteRoute, pathname, navigate]);
 
-  if (isAuthRoute || isPublicPayRoute || isReportsRoute || (isInviteRoute && !user)) {
+  if (isAuthRoute || isPublicPayRoute || (isInviteRoute && !user)) {
     // Let /auth and /pay/<code> render immediately — /pay/<code> has no
     // relationship to the logged-in session at all, and /auth handles its
     // own loading/redirect logic for the "already signed in" case.
