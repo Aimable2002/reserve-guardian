@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { REPORT_AS_OF_LABEL, trialBalanceRows } from "@/lib/reports-data";
 import { DocumentFooter, Money, ReportShell } from "@/components/report-ui";
+import { useReportsStore } from "@/lib/reports-store";
 
 export const Route = createFileRoute("/reports/trial-balance")({
   head: () => ({
@@ -17,7 +18,8 @@ export const Route = createFileRoute("/reports/trial-balance")({
 });
 
 function TrialBalancePage() {
-  const { rows, totalDebit, totalCredit } = trialBalanceRows();
+  const { entries } = useReportsStore();
+  const { rows, totalDebit, totalCredit } = trialBalanceRows(entries);
   return (
     <ReportShell title="Trial Balance" subtitle={REPORT_AS_OF_LABEL}>
       <div className="overflow-x-auto">
