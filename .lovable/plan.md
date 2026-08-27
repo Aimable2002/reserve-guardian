@@ -1,73 +1,46 @@
-## Fortress Reserve — Mobile-First PWA Prototype
+# Manual Financial Reports Ledger
 
-Build a mobile-first personal "reserve bank" dashboard as an installable PWA using the selected Swiss Institutional direction. All data is mock and lives in local React state — no backend, no persistence between reloads.
+## Goal
+Make the Financial Reports module a standalone manual bookkeeping prototype. Wallet, reserve, deposit, withdrawal, send, receive, and transfer actions will never create report records automatically.
 
-### Mobile-first commitments
+## Data flow
+```text
+Manual journal-entry form
+          |
+          v
+Standalone reports journal state (mock, client-only)
+          |
+          +--> Journal
+          +--> General Ledger
+          +--> Trial Balance
+          +--> Income Statement
+          +--> Balance Sheet
+          +--> Cash Flow
+          +--> Changes in Equity
+          +--> Bundled Financial Report
+```
 
-- Layout is designed at 390px width first; `md:` breakpoints only widen the phone frame and center it on tablet/desktop.
-- Touch targets ≥ 44px, thumb-reachable bottom nav (already fixed to bottom), safe-area insets (`env(safe-area-inset-bottom)`) so the nav clears the iOS home indicator.
-- No hover-only affordances; use `active:` states for tap feedback.
-- Preview will be switched to the mobile viewport.
+The existing sample journal remains only as initial mock records for UI review. New records can enter the reports module only through its manual journal-entry form. Prototype changes remain local and reset on refresh; no database, backend, wallet store, or reserve store is involved.
 
-### Screens (single scrollable page)
+## What to build
+- Add a clear **New journal entry** action to the Journal page.
+- Build a professional manual-entry form with date, reference, description, and editable debit/credit lines.
+- Let users add and remove account lines and choose accounts only from the report chart of accounts.
+- Require at least two lines, positive amounts, and equal debit/credit totals before posting.
+- Show live debit, credit, and out-of-balance totals in the form.
+- Add manual edit and delete controls for report journal entries, with confirmation where destructive.
+- Put the standalone journal into a reports-only React context so all eight documents update from the same manually maintained source.
+- Refactor report calculations to accept the journal from that context instead of reading a fixed module-level array.
+- Keep the existing report routes, visual design, navigation, and mock opening balances unchanged.
 
-1. **Header** — "Fortress Reserve / Personal Ledger" + avatar circle.
-2. **Balance hero card** — deep navy card, total reserved balance ($42,850.00), runway in months, subtle emerald glow.
-3. **Quick actions** — Deposit and Withdraw buttons opening a modal.
-4. **Reserves list** — 3 mock reserves, each with title, target ("Sustain X days" or "Reach $Y"), percentage, animated progress bar, current/target amounts:
-   - Emergency Survival — 12-month coverage
-   - Winter Sabbatical — $10,000
-   - Health Buffer — 180 days (100%)
-5. **Survival cost configuration** — editable monthly cost; updates runway live.
-6. **Fixed bottom nav** — Vault (active) / Analytics / History (visual only).
+## Isolation guarantees
+- No listeners, imports, calls, triggers, or synchronization from wallet/reserve transaction logic.
+- No calls to the existing app backend or database.
+- No report entry is created as a side effect of any money movement elsewhere in the app.
+- The manual journal form is the only creation path inside Financial Reports.
 
-### Interactions (mock, local state only)
-
-- **Deposit / Withdraw**: shadcn Dialog with amount input + reserve selector. Updates total balance and the target reserve's current amount. Withdraw clamps to available. Toast confirms.
-- **Monthly survival cost**: controlled input; runway = `balance / monthlyCost` → months + days. Time-based reserves recompute.
-- **Progress bars**: animate width on mount.
-
-### PWA (manifest-only, installable to home screen)
-
-Home-screen install only — no offline caching, no service worker (per PWA skill: manifest-only path is correct for "add to home screen").
-
-- `public/manifest.webmanifest` — name "Fortress Reserve", short_name "Reserve", `display: "standalone"`, `background_color: #f8fafc`, `theme_color: #0f172a`, `start_url: "/"`, `scope: "/"`, icons at 192 and 512 (maskable + any).
-- Generate a square navy brand mark with an emerald accent; save as `public/icon-192.png`, `public/icon-512.png`, `public/icon-maskable-512.png`, and `public/favicon.png`. Delete the default `public/favicon.ico`.
-- Wire into `src/routes/__root.tsx` head() `links`/`meta`:
-  - `<link rel="manifest" href="/manifest.webmanifest">`
-  - `<link rel="icon" type="image/png" href="/favicon.png">`
-  - `<link rel="apple-touch-icon" href="/icon-192.png">`
-  - `<meta name="theme-color" content="#0f172a">`
-  - `<meta name="apple-mobile-web-app-capable" content="yes">`
-  - `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
-  - `<meta name="apple-mobile-web-app-title" content="Reserve">`
-  - Viewport meta already exists — extend with `viewport-fit=cover` for safe areas.
-- No `vite-plugin-pwa`, no `sw.js`, no registration code — installability comes from the manifest + icons alone.
-
-**Install behavior**: on Android/Chrome an install prompt appears; on iOS Safari users use Share → Add to Home Screen. Standalone launch works because of `display: standalone`. Offline is out of scope and I will say so explicitly.
-
-### Design system
-
-Port prototype tokens verbatim into `src/styles.css`:
-- Fonts: Instrument Sans, JetBrains Mono via `<link>` in `__root.tsx`.
-- Colors as oklch mapped through `@theme inline`: `--reserve-navy` (#0f172a), `--reserve-emerald` (#059669), `--reserve-slate` (#64748b), `--reserve-bg` (#f8fafc).
-- Match rounded-2xl/3xl radii, spacing, and typographic hierarchy from the chosen direction.
-- Light mode only (matches selected direction).
-
-### Files
-
-- `src/routes/index.tsx` — replace placeholder; render dashboard, own mock state, wire dialogs; set route `head()` with app-specific title/description/og.
-- `src/routes/__root.tsx` — add font `<link>` tags, manifest link, apple/theme meta.
-- `src/styles.css` — add font-family and reserve color tokens.
-- `src/lib/reserve-data.ts` — initial mock reserves + types.
-- `public/manifest.webmanifest` — PWA manifest.
-- `public/icon-192.png`, `public/icon-512.png`, `public/icon-maskable-512.png`, `public/favicon.png` — generated brand icons.
-- Delete `public/favicon.ico`.
-- Reuse shadcn `Dialog`, `Input`, `Button`, `Label`, `Sonner`; install any missing.
-
-### Out of scope
-
-- No offline mode, no service worker, no push notifications.
-- No auth, database, or Cloud.
-- No real transactions — reload resets to mock defaults.
-- No dark mode toggle in this pass.
+## Validation
+- Verify an unbalanced entry cannot be posted.
+- Post a balanced entry and confirm the Journal, General Ledger, Trial Balance, and statements update consistently.
+- Edit and delete a manual entry and confirm all dependent reports recalculate.
+- Verify wallet and reserve flows do not change report records.
