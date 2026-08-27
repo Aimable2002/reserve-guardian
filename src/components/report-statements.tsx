@@ -11,6 +11,7 @@ import {
   SubSectionHeader,
   TotalRow,
 } from "@/components/report-ui";
+import { useReportsStore } from "@/lib/reports-store";
 
 /**
  * Reusable bodies for the four primary financial statements. The standalone
@@ -20,7 +21,8 @@ import {
  */
 
 export function IncomeStatementBody() {
-  const is = incomeStatement();
+  const { entries } = useReportsStore();
+  const is = incomeStatement(entries);
   return (
     <div>
       <SectionHeader>Revenue</SectionHeader>
@@ -50,7 +52,8 @@ export function IncomeStatementBody() {
 }
 
 export function BalanceSheetBody() {
-  const bs = balanceSheet();
+  const { entries } = useReportsStore();
+  const bs = balanceSheet(entries);
   return (
     <div>
       <SectionHeader>Assets</SectionHeader>
@@ -97,7 +100,8 @@ export function BalanceSheetBody() {
 }
 
 export function CashFlowBody() {
-  const cf = cashFlowStatement();
+  const { entries } = useReportsStore();
+  const cf = cashFlowStatement(entries);
   return (
     <div>
       <SectionHeader>Operating Activities</SectionHeader>
@@ -130,7 +134,8 @@ export function CashFlowBody() {
 }
 
 export function EquityStatementBody() {
-  const eq = equityStatement();
+  const { entries } = useReportsStore();
+  const eq = equityStatement(entries);
   return (
     <div>
       <SectionHeader>Statement of Changes in Equity</SectionHeader>

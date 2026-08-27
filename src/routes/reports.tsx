@@ -1,6 +1,7 @@
 import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
 import { FileBarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ReportsStoreProvider } from "@/lib/reports-store";
 
 const reportNav = [
   { to: "/reports/general-ledger", label: "General Ledger" },
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/reports")({
 
 function ReportsLayout() {
   return (
+    <ReportsStoreProvider>
     <div className="min-h-screen bg-reserve-bg text-reserve-navy dark:bg-reserve-navy dark:text-white">
       <header className="border-b border-reserve-navy/10 bg-white/70 backdrop-blur dark:border-white/10 dark:bg-reserve-navy/60">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4 sm:px-6">
@@ -66,5 +68,6 @@ function ReportsLayout() {
         </main>
       </div>
     </div>
+    </ReportsStoreProvider>
   );
 }

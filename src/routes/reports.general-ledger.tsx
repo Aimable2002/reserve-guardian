@@ -8,6 +8,7 @@ import {
 } from "@/lib/reports-data";
 import { DocumentFooter, Money, ReportShell } from "@/components/report-ui";
 import { cn } from "@/lib/utils";
+import { useReportsStore } from "@/lib/reports-store";
 
 export const Route = createFileRoute("/reports/general-ledger")({
   head: () => ({
@@ -32,12 +33,13 @@ const TYPE_BADGE: Record<string, string> = {
 };
 
 function GeneralLedgerPage() {
+  const { entries } = useReportsStore();
   return (
     <ReportShell title="General Ledger" subtitle={REPORT_PERIOD_LABEL}>
       <div className="space-y-8">
         {REPORT_ACCOUNTS.map((acc) => {
-          const rows = ledgerForAccount(acc.code);
-          const closing = closingBalance(acc.code);
+          const rows = ledgerForAccount(acc.code, entries);
+          const closing = closingBalance(acc.code, entries);
           return (
             <section
               key={acc.code}
