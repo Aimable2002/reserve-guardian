@@ -1,7 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { JOURNAL_ENTRIES, REPORT_PERIOD_LABEL, fmtReportDate, getAccount } from "@/lib/reports-data";
+import { useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { REPORT_PERIOD_LABEL, fmtReportDate, getAccount, type JournalEntry } from "@/lib/reports-data";
 import { DocumentFooter, Money, ReportShell } from "@/components/report-ui";
 import { cn } from "@/lib/utils";
+import { useReportsStore } from "@/lib/reports-store";
+import { JournalEntryDialog } from "@/components/journal-entry-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/reports/journal")({
   head: () => ({
@@ -18,10 +33,31 @@ export const Route = createFileRoute("/reports/journal")({
 });
 
 function JournalPage() {
+  const store = useReportsStore();
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | undefined>();
+  const [deletingEntry, setDeletingEntry] = useState<JournalEntry | undefined>();
+
+  const createEntry = () => {
+    setEditingEntry(undefined);
+    setEditorOpen(true);
+  };
+
+  const editEntry = (entry: JournalEntry) => {
+    setEditingEntry(entry);
+    setEditorOpen(true);
+  };
+
   return (
     <ReportShell title="Journal — Transaction Record" subtitle={REPORT_PERIOD_LABEL}>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-reserve-navy/10 pb-4 dark:border-white/10">
+        <p className="max-w-xl text-xs leading-relaxed text-reserve-slate">
+          This manual journal is the only source for every financial report. App wallet and reserve activity is never recorded here automatically.
+        </p>
+        <Button type="button" onClick={createEntry}><Plus /> New journal entry</Button>
+      </div>
       <div className="space-y-5">
-        {JOURNAL_ENTRIES.map((entry) => {
+        {store.entries.map((entry) => {
           const total = entry.lines.reduce((s, l) => s + l.debit, 0);
           return (
             <article
@@ -33,7 +69,11 @@ function JournalPage() {
                   <span className="font-mono text-xs font-semibold text-reserve-navy dark:text-white">{entry.ref}</span>
                   <span className="text-xs text-reserve-slate">{fmtReportDate(entry.date)}</span>
                 </div>
-                <p className="text-xs font-medium text-reserve-navy dark:text-white/90">{entry.description}</p>
+                <div className="flex items-center gap-1">
+                  <p className="mr-2 text-xs font-medium text-reserve-navy dark:text-white/90">{entry.description}</p>
+                  <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${entry.ref}`} onClick={() => editEntry(entry)}><Pencil /></Button>
+                  <Button type="button" variant="ghost" size="icon" aria-label={`Delete ${entry.ref}`} onClick={() => setDeletingEntry(entry)}><Trash2 /></Button>
+                </div>
               </header>
               <table className="w-full text-sm">
                 <thead>
@@ -80,6 +120,29 @@ function JournalPage() {
         })}
       </div>
       <DocumentFooter />
+      <JournalEntryDialog open={editorOpen} onOpenChange={setEditorOpen} entry={editingEntry} />
+      <AlertDialog open={Boolean(deletingEntry)} onOpenChange={(open) => !open && setDeletingEntry(undefined)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete journal entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deleting {deletingEntry?.ref} will recalculate every financial statement. This prototype action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingEntry) store.deleteEntry(deletingEntry.ref);
+                setDeletingEntry(undefined);
+              }}
+            >
+              Delete entry
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ReportShell>
   );
 }
