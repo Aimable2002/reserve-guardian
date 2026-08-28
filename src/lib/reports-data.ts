@@ -14,14 +14,18 @@
 export type ReportAccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
 export interface ReportAccount {
+  /** Database id when the account is loaded from Supabase. */
+  id?: string;
   code: string;
   name: string;
   type: ReportAccountType;
   /** current / non-current (assets & liabilities), operating / other (income statement), contra-equity */
   subtype: "current" | "non-current" | "operating" | "other" | "contra-equity" | null;
   normal: "debit" | "credit";
-  /** Opening balance on July 1, 2026, expressed in the account's normal-balance terms. */
+  /** Opening balance, expressed in the account's normal-balance terms. */
   opening: number;
+  isActive?: boolean;
+  sortOrder?: number;
 }
 
 export interface JournalLine {
@@ -31,6 +35,8 @@ export interface JournalLine {
 }
 
 export interface JournalEntry {
+  /** Database id when the entry is loaded from Supabase. */
+  id?: string;
   ref: string;
   date: string; // ISO date
   description: string;
@@ -66,12 +72,21 @@ export const REPORT_ACCOUNTS: ReportAccount[] = [
   { code: "5900", name: "Bank Charges", type: "expense", subtype: "other", normal: "debit", opening: 0 },
 ];
 
-const accountByCode = new Map(REPORT_ACCOUNTS.map((a) => [a.code, a]));
+/** Seed chart of accounts used the first time a user opens Financial Reports. */
+export const DEFAULT_REPORT_ACCOUNTS = REPORT_ACCOUNTS;
 
-export function getAccount(code: string): ReportAccount {
-  const acc = accountByCode.get(code);
-  if (!acc) throw new Error(`Unknown mock account ${code}`);
-  return acc;
+const UNKNOWN_ACCOUNT: ReportAccount = {
+  code: "----",
+  name: "Unknown account",
+  type: "asset",
+  subtype: null,
+  normal: "debit",
+  opening: 0,
+};
+
+/** Look up an account by code within the supplied chart of accounts. */
+export function getAccount(code: string, accounts: ReportAccount[] = REPORT_ACCOUNTS): ReportAccount {
+  return accounts.find((a) => a.code === code) ?? { ...UNKNOWN_ACCOUNT, code };
 }
 
 /* ------------------------------------------------------------------ */
@@ -238,8 +253,8 @@ export function linesForAccount(code: string, entries: JournalEntry[] = JOURNAL_
 }
 
 /** Closing balance of an account, expressed in its normal-balance terms. */
-export function closingBalance(code: string, entries: JournalEntry[] = JOURNAL_ENTRIES): number {
-  const acc = getAccount(code);
+export function closingBalance(code: string, entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS): number {
+  const acc = getAccount(code, accounts);
   let bal = acc.opening;
   for (const { line } of linesForAccount(code, entries)) {
     bal += acc.normal === "debit" ? line.debit - line.credit : line.credit - line.debit;
@@ -257,8 +272,8 @@ export interface LedgerRow {
 }
 
 /** General-ledger view for one account: opening row + running balance. */
-export function ledgerForAccount(code: string, entries: JournalEntry[] = JOURNAL_ENTRIES): LedgerRow[] {
-  const acc = getAccount(code);
+export function ledgerForAccount(code: string, entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS): LedgerRow[] {
+  const acc = getAccount(code, accounts);
   let bal = acc.opening;
   return linesForAccount(code, entries).map(({ entry, line }) => {
     bal += acc.normal === "debit" ? line.debit - line.credit : line.credit - line.debit;
@@ -281,12 +296,12 @@ export interface TrialBalanceRow {
 }
 
 /** Trial balance: every account with a non-zero closing balance, in its normal column. */
-export function trialBalanceRows(entries: JournalEntry[] = JOURNAL_ENTRIES): { rows: TrialBalanceRow[]; totalDebit: number; totalCredit: number } {
+export function trialBalanceRows(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS): { rows: TrialBalanceRow[]; totalDebit: number; totalCredit: number } {
   const rows: TrialBalanceRow[] = [];
   let totalDebit = 0;
   let totalCredit = 0;
-  for (const acc of REPORT_ACCOUNTS) {
-    const bal = closingBalance(acc.code, entries);
+  for (const acc of accounts) {
+    const bal = closingBalance(acc.code, entries, accounts);
     if (bal === 0) continue;
     const debit = acc.normal === "debit" ? bal : 0;
     const credit = acc.normal === "credit" ? bal : 0;
@@ -305,12 +320,12 @@ export interface StatementLine {
   amount: number;
 }
 
-export function incomeStatement(entries: JournalEntry[] = JOURNAL_ENTRIES) {
+export function incomeStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
   const revenue: StatementLine[] = [];
   const operatingExpenses: StatementLine[] = [];
   const otherExpenses: StatementLine[] = [];
-  for (const acc of REPORT_ACCOUNTS) {
-    const bal = closingBalance(acc.code, entries);
+  for (const acc of accounts) {
+    const bal = closingBalance(acc.code, entries, accounts);
     if (acc.type === "revenue" && bal !== 0) {
       revenue.push({ code: acc.code, name: acc.name, amount: bal });
     } else if (acc.type === "expense" && bal !== 0) {
@@ -331,13 +346,13 @@ export function incomeStatement(entries: JournalEntry[] = JOURNAL_ENTRIES) {
 
 /* --------------------------- Balance sheet ------------------------- */
 
-export function balanceSheet(entries: JournalEntry[] = JOURNAL_ENTRIES) {
+export function balanceSheet(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
   const currentAssets: StatementLine[] = [];
   const nonCurrentAssets: StatementLine[] = [];
   const currentLiabilities: StatementLine[] = [];
   const nonCurrentLiabilities: StatementLine[] = [];
-  for (const acc of REPORT_ACCOUNTS) {
-    const bal = closingBalance(acc.code, entries);
+  for (const acc of accounts) {
+    const bal = closingBalance(acc.code, entries, accounts);
     if (acc.type === "asset" && bal !== 0) {
       (acc.subtype === "current" ? currentAssets : nonCurrentAssets).push({ code: acc.code, name: acc.name, amount: bal });
     } else if (acc.type === "liability" && bal !== 0) {
@@ -352,9 +367,9 @@ export function balanceSheet(entries: JournalEntry[] = JOURNAL_ENTRIES) {
   const totalLiabilities = round2(totalCurrentLiabilities + totalNonCurrentLiabilities);
 
   // Equity section: capital account closing balance + retained net income − draws.
-  const capital = closingBalance("3000", entries);
-  const draws = closingBalance("3100", entries);
-  const { netIncome } = incomeStatement(entries);
+  const capital = closingBalance("3000", entries, accounts);
+  const draws = closingBalance("3100", entries, accounts);
+  const { netIncome } = incomeStatement(entries, accounts);
   const totalEquity = round2(capital + netIncome - draws);
 
   return {
@@ -378,11 +393,11 @@ export function balanceSheet(entries: JournalEntry[] = JOURNAL_ENTRIES) {
 
 /* --------------------------- Cash flow ----------------------------- */
 
-export function cashFlowStatement(entries: JournalEntry[] = JOURNAL_ENTRIES) {
-  const { netIncome } = incomeStatement(entries);
+export function cashFlowStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
+  const { netIncome } = incomeStatement(entries, accounts);
   // Working-capital movements, derived from opening vs closing balances.
-  const arIncrease = round2(closingBalance("1100", entries) - getAccount("1100").opening);
-  const apIncrease = round2(closingBalance("2100", entries) - getAccount("2100").opening);
+  const arIncrease = round2(closingBalance("1100", entries, accounts) - getAccount("1100", accounts).opening);
+  const apIncrease = round2(closingBalance("2100", entries, accounts) - getAccount("2100", accounts).opening);
 
   const operating = [
     { name: "Net income", amount: netIncome },
@@ -398,7 +413,7 @@ export function cashFlowStatement(entries: JournalEntry[] = JOURNAL_ENTRIES) {
   const contributions = round2(
     linesForAccount("3000", entries).reduce((s, { line }) => s + line.credit - line.debit, 0),
   );
-  const draws = closingBalance("3100", entries);
+  const draws = closingBalance("3100", entries, accounts);
   const financing = [
     { name: "Owner capital contribution", amount: contributions },
     { name: "Owner's draws", amount: -draws },
@@ -406,7 +421,7 @@ export function cashFlowStatement(entries: JournalEntry[] = JOURNAL_ENTRIES) {
   const netFinancing = round2(financing.reduce((s, l) => s + l.amount, 0));
 
   const netChange = round2(netOperating + netInvesting + netFinancing);
-  const beginningCash = getAccount("1000").opening;
+  const beginningCash = getAccount("1000", accounts).opening;
   const endingCash = round2(beginningCash + netChange);
 
   return { operating, netOperating, investing, netInvesting, financing, netFinancing, netChange, beginningCash, endingCash };
@@ -414,13 +429,13 @@ export function cashFlowStatement(entries: JournalEntry[] = JOURNAL_ENTRIES) {
 
 /* --------------------- Statement of changes in equity -------------- */
 
-export function equityStatement(entries: JournalEntry[] = JOURNAL_ENTRIES) {
-  const openingCapital = getAccount("3000").opening;
+export function equityStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
+  const openingCapital = getAccount("3000", accounts).opening;
   const contributions = round2(
     linesForAccount("3000", entries).reduce((s, { line }) => s + line.credit - line.debit, 0),
   );
-  const { netIncome } = incomeStatement(entries);
-  const draws = closingBalance("3100", entries);
+  const { netIncome } = incomeStatement(entries, accounts);
+  const draws = closingBalance("3100", entries, accounts);
   const closingEquity = round2(openingCapital + contributions + netIncome - draws);
   return { openingCapital, contributions, netIncome, draws, closingEquity };
 }
