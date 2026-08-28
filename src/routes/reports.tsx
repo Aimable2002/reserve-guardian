@@ -29,6 +29,7 @@ export const Route = createFileRoute("/reports")({
 });
 
 function ReportsLayout() {
+  const [entryOpen, setEntryOpen] = useState(false);
   return (
     <ReportsStoreProvider>
     <div className="min-h-screen bg-reserve-bg text-reserve-navy dark:bg-reserve-navy dark:text-white">
@@ -37,12 +38,17 @@ function ReportsLayout() {
           <span className="flex size-9 items-center justify-center rounded-xl bg-reserve-navy text-white dark:bg-white dark:text-reserve-navy">
             <FileBarChart2 className="size-4" />
           </span>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-base font-bold tracking-tight">Financial Reports</h1>
             <p className="text-[11px] text-reserve-slate">Mock data prototype · July 2026 · USD</p>
           </div>
+          <Button type="button" size="sm" className="ml-auto shrink-0" onClick={() => setEntryOpen(true)}>
+            <Plus /> <span className="hidden sm:inline">New journal entry</span><span className="sm:hidden">Record</span>
+          </Button>
         </div>
       </header>
+      <JournalEntryDialog open={entryOpen} onOpenChange={setEntryOpen} />
+
 
       <div className="mx-auto max-w-5xl gap-8 px-4 py-6 sm:px-6 md:flex">
         {/* Sidebar on desktop, horizontal scroll tabs on mobile */}
