@@ -1,7 +1,11 @@
 import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
-import { FileBarChart2 } from "lucide-react";
+import { useState } from "react";
+import { FileBarChart2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReportsStoreProvider } from "@/lib/reports-store";
+import { JournalEntryDialog } from "@/components/journal-entry-dialog";
+import { Button } from "@/components/ui/button";
+
 
 const reportNav = [
   { to: "/reports/general-ledger", label: "General Ledger" },
