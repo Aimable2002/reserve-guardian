@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
@@ -32,7 +40,13 @@ interface ReportsStoreValue {
   entries: JournalEntry[];
   loading: boolean;
   error: string | null;
+  /** True once we know this user has no report_settings row yet — books must not be seeded. */
+  needsSetup: boolean;
+  /** Books' currency, chosen by the user during first-time setup. Null until setup completes. */
+  currency: string | null;
   reload: () => Promise<void>;
+  /** First-time setup: records the user's currency choice and their own opening balances. */
+  completeSetup: (currency: string, openings: Record<string, number>) => Promise<void>;
   addEntry: (entry: JournalEntry) => Promise<void>;
   updateEntry: (entryId: string, entry: JournalEntry) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
@@ -92,20 +106,41 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [currency, setCurrency] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) {
       setAllAccounts([]);
       setEntries([]);
+      setNeedsSetup(false);
+      setCurrency(null);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
+      const settings = await fetchSettings(userId);
+      if (!settings) {
+        // No settings row yet: this user has never completed first-time setup.
+        // Do NOT seed accounts or opening balances — that would put money in
+        // the books the user never entered. Surface the setup gate instead.
+        setCurrency(null);
+        setNeedsSetup(true);
+        setAllAccounts([]);
+        setEntries([]);
+        return;
+      }
+      setCurrency(settings.currency);
+      setNeedsSetup(false);
+
       let accountRows = await fetchAccounts(userId);
       if (accountRows.length === 0) {
-        await seedAccounts(userId);
+        // Settings exist but accounts don't (shouldn't normally happen — setup
+        // writes both together). Recover the chart-of-accounts structure only,
+        // still with zero opening balances; never fabricate a balance here.
+        await seedAccounts(userId, {});
         accountRows = await fetchAccounts(userId);
       }
       const accounts = accountRows.map(mapAccount);
@@ -113,7 +148,9 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
 
       const { data: entryData, error: entryError } = await supabase
         .from("report_journal_entries")
-        .select("id, ref, entry_date, description, report_journal_lines(account_id, debit, credit, line_order)")
+        .select(
+          "id, ref, entry_date, description, report_journal_lines(account_id, debit, credit, line_order)",
+        )
         .eq("user_id", userId)
         .order("entry_date", { ascending: true })
         .order("ref", { ascending: true });
@@ -175,12 +212,28 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
       entries,
       loading,
       error,
+      needsSetup,
+      currency,
       reload: load,
+      completeSetup: async (chosenCurrency, openings) => {
+        if (!userId) throw new Error("Sign in to set up your books.");
+        const { error: settingsError } = await supabase
+          .from("report_settings")
+          .insert({ user_id: userId, currency: chosenCurrency });
+        if (settingsError) throw settingsError;
+        await seedAccounts(userId, openings);
+        await load();
+      },
       addEntry: async (entry) => {
         if (!userId) throw new Error("Sign in to record journal entries.");
         const { data, error: insertError } = await supabase
           .from("report_journal_entries")
-          .insert({ user_id: userId, ref: entry.ref, entry_date: entry.date, description: entry.description })
+          .insert({
+            user_id: userId,
+            ref: entry.ref,
+            entry_date: entry.date,
+            description: entry.description,
+          })
           .select("id")
           .single();
         if (insertError) throw insertError;
@@ -190,21 +243,34 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
       updateEntry: async (entryId, entry) => {
         const { error: updateError } = await supabase
           .from("report_journal_entries")
-          .update({ ref: entry.ref, entry_date: entry.date, description: entry.description, updated_at: new Date().toISOString() })
+          .update({
+            ref: entry.ref,
+            entry_date: entry.date,
+            description: entry.description,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", entryId);
         if (updateError) throw updateError;
-        const { error: clearError } = await supabase.from("report_journal_lines").delete().eq("entry_id", entryId);
+        const { error: clearError } = await supabase
+          .from("report_journal_lines")
+          .delete()
+          .eq("entry_id", entryId);
         if (clearError) throw clearError;
         await writeLines(entryId, entry);
         await load();
       },
       deleteEntry: async (entryId) => {
-        const { error: deleteError } = await supabase.from("report_journal_entries").delete().eq("id", entryId);
+        const { error: deleteError } = await supabase
+          .from("report_journal_entries")
+          .delete()
+          .eq("id", entryId);
         if (deleteError) throw deleteError;
         await load();
       },
       hasReference: (ref, excludingId) =>
-        entries.some((entry) => entry.ref.toLowerCase() === ref.toLowerCase() && entry.id !== excludingId),
+        entries.some(
+          (entry) => entry.ref.toLowerCase() === ref.toLowerCase() && entry.id !== excludingId,
+        ),
       createAccount: async (input) => {
         if (!userId) throw new Error("Sign in to manage the chart of accounts.");
         const { error: insertError } = await supabase.from("report_accounts").insert({
@@ -239,12 +305,15 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
         await load();
       },
       deleteAccount: async (accountId) => {
-        const { error: deleteError } = await supabase.from("report_accounts").delete().eq("id", accountId);
+        const { error: deleteError } = await supabase
+          .from("report_accounts")
+          .delete()
+          .eq("id", accountId);
         if (deleteError) throw deleteError;
         await load();
       },
     };
-  }, [accounts, allAccounts, entries, loading, error, load, userId]);
+  }, [accounts, allAccounts, entries, loading, error, needsSetup, currency, load, userId]);
 
   return <ReportsStoreContext.Provider value={value}>{children}</ReportsStoreContext.Provider>;
 }
@@ -266,8 +335,26 @@ async function fetchAccounts(userId: string): Promise<AccountRow[]> {
   return (data ?? []) as AccountRow[];
 }
 
-/** First run: give the user the standard starter chart of accounts. */
-async function seedAccounts(userId: string) {
+type SettingsRow = { user_id: string; currency: string };
+
+async function fetchSettings(userId: string): Promise<SettingsRow | null> {
+  const { data, error } = await supabase
+    .from("report_settings")
+    .select("user_id, currency")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as SettingsRow | null) ?? null;
+}
+
+/**
+ * Create the standard starter chart of accounts for a user, at the opening
+ * balances they entered during first-time setup (default 0 for anything they
+ * left blank). This never runs on its own — it's only called from
+ * completeSetup (after the user has chosen a currency and stated their
+ * figures) or as structure-only recovery with an empty openings map.
+ */
+async function seedAccounts(userId: string, openings: Record<string, number>) {
   const { error } = await supabase.from("report_accounts").insert(
     DEFAULT_REPORT_ACCOUNTS.map((account, index) => ({
       user_id: userId,
@@ -276,7 +363,7 @@ async function seedAccounts(userId: string) {
       type: account.type,
       subtype: account.subtype,
       normal: account.normal,
-      opening_balance: account.opening,
+      opening_balance: openings[account.code] ?? 0,
       is_active: true,
       sort_order: index,
     })),
