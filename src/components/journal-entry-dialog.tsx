@@ -8,15 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { fmtReportMoney, REPORT_ACCOUNTS, type JournalEntry, type JournalLine } from "@/lib/reports-data";
+import { fmtReportMoney, type JournalEntry, type JournalLine } from "@/lib/reports-data";
 import { useReportsStore } from "@/lib/reports-store";
 
-const entrySchema = z.object({
+const buildSchema = (codes: string[]) => z.object({
   ref: z.string().trim().min(1, "Reference is required.").max(40, "Reference must be 40 characters or fewer."),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
   description: z.string().trim().min(1, "Description is required.").max(200, "Description must be 200 characters or fewer."),
   lines: z.array(z.object({
-    account: z.string().refine((code) => REPORT_ACCOUNTS.some((account) => account.code === code), "Choose an account."),
+    account: z.string().refine((code) => codes.includes(code), "Choose an account."),
     debit: z.number().min(0),
     credit: z.number().min(0),
   }).refine((line) => (line.debit > 0) !== (line.credit > 0), "Enter either a debit or a credit." )).min(2, "Add at least two account lines."),
@@ -39,11 +39,13 @@ export function JournalEntryDialog({
   const [description, setDescription] = useState("");
   const [lines, setLines] = useState<JournalLine[]>([emptyLine(), emptyLine()]);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setRef(entry?.ref ?? `JE-2026-${String(store.entries.length + 1).padStart(3, "0")}`);
-    setDate(entry?.date ?? "2026-07-31");
+    const year = new Date().getFullYear();
+    setRef(entry?.ref ?? `JE-${year}-${String(store.entries.length + 1).padStart(3, "0")}`);
+    setDate(entry?.date ?? new Date().toISOString().slice(0, 10));
     setDescription(entry?.description ?? "");
     setLines(entry?.lines.map((line) => ({ ...line })) ?? [emptyLine(), emptyLine()]);
     setError("");
@@ -59,8 +61,9 @@ export function JournalEntryDialog({
     setLines((current) => current.map((line, lineIndex) => lineIndex === index ? { ...line, ...patch } : line));
   };
 
-  const submit = () => {
-    const parsed = entrySchema.safeParse({ ref, date, description, lines });
+  const submit = async () => {
+    const parsed = buildSchema(store.accounts.map((account) => account.code))
+      .safeParse({ ref, date, description, lines });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Check the entry details.");
       return;
@@ -69,7 +72,7 @@ export function JournalEntryDialog({
       setError("Total debits and credits must be equal and greater than zero.");
       return;
     }
-    if (store.hasReference(parsed.data.ref, entry?.ref)) {
+    if (store.hasReference(parsed.data.ref.trim(), entry?.id)) {
       setError("That reference number is already in use.");
       return;
     }
@@ -78,10 +81,19 @@ export function JournalEntryDialog({
       ref: parsed.data.ref.trim(),
       description: parsed.data.description.trim(),
     };
-    if (entry) store.updateEntry(entry.ref, cleanEntry);
-    else store.addEntry(cleanEntry);
-    toast.success(entry ? "Journal entry updated" : "Journal entry posted");
-    onOpenChange(false);
+    setSaving(true);
+    try {
+      if (entry?.id) await store.updateEntry(entry.id, cleanEntry);
+      else await store.addEntry(cleanEntry);
+      toast.success(entry ? "Journal entry updated" : "Journal entry posted");
+      onOpenChange(false);
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : "Could not save this entry.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -119,7 +131,7 @@ export function JournalEntryDialog({
               <Select value={line.account} onValueChange={(account) => updateLine(index, { account })}>
                 <SelectTrigger aria-label={`Account line ${index + 1}`}><SelectValue placeholder="Select account" /></SelectTrigger>
                 <SelectContent>
-                  {REPORT_ACCOUNTS.map((account) => <SelectItem key={account.code} value={account.code}>{account.code} · {account.name}</SelectItem>)}
+                  {store.accounts.map((account) => <SelectItem key={account.code} value={account.code}>{account.code} · {account.name}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input aria-label={`Debit line ${index + 1}`} type="number" min="0" step="0.01" placeholder="Debit" value={line.debit || ""} onChange={(event) => updateLine(index, { debit: Number(event.target.value), credit: event.target.value ? 0 : line.credit })} />
@@ -140,7 +152,7 @@ export function JournalEntryDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" onClick={submit}>{entry ? "Save changes" : "Post entry"}</Button>
+          <Button type="button" disabled={saving} onClick={() => void submit()}>{saving ? "Saving…" : entry ? "Save changes" : "Post entry"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

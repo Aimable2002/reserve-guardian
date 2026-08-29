@@ -18,8 +18,8 @@ export const Route = createFileRoute("/reports/trial-balance")({
 });
 
 function TrialBalancePage() {
-  const { entries } = useReportsStore();
-  const { rows, totalDebit, totalCredit } = trialBalanceRows(entries);
+  const { entries, accounts } = useReportsStore();
+  const { rows, totalDebit, totalCredit } = trialBalanceRows(entries, accounts);
   return (
     <ReportShell title="Trial Balance" subtitle={REPORT_AS_OF_LABEL}>
       <div className="overflow-x-auto">
