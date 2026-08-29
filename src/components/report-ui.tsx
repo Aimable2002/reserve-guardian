@@ -1,16 +1,11 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import {
-  fmtReportMoney,
-  REPORT_AS_OF_LABEL,
-  REPORT_ENTITY,
-  REPORT_PERIOD_LABEL,
-} from "@/lib/reports-data";
+import { fmtReportMoney } from "@/lib/reports-data";
 import { useReportsStore } from "@/lib/reports-store";
 
 /**
  * Presentational primitives shared by every Financial Reports document.
- * UI-only prototype — renders mock data from src/lib/reports-data.ts.
+ * Currency and entity name come from the live store — never hardcoded.
  */
 
 export function ReportShell({
@@ -22,11 +17,12 @@ export function ReportShell({
   subtitle: string;
   children: ReactNode;
 }) {
+  const { entityName } = useReportsStore();
   return (
     <div className="rounded-2xl border border-reserve-navy/10 bg-white p-5 shadow-sm sm:p-8 dark:border-white/10 dark:bg-reserve-navy/40">
       <div className="mb-6 text-center">
         <p className="text-[11px] font-semibold tracking-[0.18em] text-reserve-slate uppercase">
-          {REPORT_ENTITY}
+          {entityName}
         </p>
         <h2 className="mt-1 text-xl font-bold text-reserve-navy sm:text-2xl dark:text-white">
           {title}
@@ -111,11 +107,7 @@ export function GrandTotalRow({ label, amount }: { label: string; amount: number
 export function DocumentFooter({ note }: { note?: string }) {
   return (
     <p className="mt-8 border-t border-reserve-navy/10 pt-3 text-center text-[11px] text-reserve-slate dark:border-white/10">
-      {note ?? "Mock data for UI review only — not connected to live accounts."}
+      {note ?? "Manually recorded books — not connected to wallet or reserve activity."}
     </p>
   );
 }
-
-/** Convenience labels used across the statement pages. */
-export const PERIOD = REPORT_PERIOD_LABEL;
-export const AS_OF = REPORT_AS_OF_LABEL;
