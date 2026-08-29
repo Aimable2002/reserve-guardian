@@ -75,15 +75,15 @@ function ReportsLayoutInner() {
       <div className="mx-auto max-w-5xl gap-8 px-4 py-6 sm:px-6 md:flex">
         {store.error ? (
           // Never fall through to a "normal" view with an empty chart of
-          // accounts — that's how a broken load (e.g. a migration that
-          // hasn't been run yet) looks identical to a healthy empty state.
-          // Fail loudly instead.
+          // accounts — that's how a broken load (e.g. an RLS/permissions
+          // issue) looks identical to a healthy empty state. Fail loudly instead.
           <div className="mx-auto w-full max-w-md rounded-2xl border border-destructive/30 bg-destructive/5 p-5 sm:p-8">
             <h2 className="text-lg font-bold text-destructive">Couldn't load your books</h2>
             <p className="mt-2 text-sm text-reserve-slate">{store.error}</p>
             <p className="mt-2 text-xs text-reserve-slate">
-              If this is a new setup, check that the <code>report_settings</code> migration has been
-              run on the database.
+              This is usually a permissions issue — check that your account has access to the
+              <code> report_accounts</code>, <code>report_journal_entries</code>, and{" "}
+              <code>profiles</code> tables.
             </p>
             <Button
               type="button"
