@@ -1,14 +1,17 @@
 /**
- * Standalone mock data for the Financial Reports prototype module.
+ * Data model, formatting helpers, and pure derivations for the Financial
+ * Reports module (trial balance, income statement, balance sheet, cash
+ * flow, equity, general ledger, journal).
  *
- * IMPORTANT: this module is intentionally disconnected from the rest of the
- * app — no Supabase, no backend, no shared store. Every figure below is
- * hardcoded mock data for UI/UX review only.
+ * REPORT_ACCOUNTS and JOURNAL_ENTRIES below are a static reference dataset
+ * — useful for local UI development — but the live app never reads them
+ * directly. Real books are loaded from Supabase by reports-store.tsx and
+ * passed into every function here as explicit accounts/entries arguments.
  *
  * Internal consistency is guaranteed by construction: every statement is
- * derived from the same chart of accounts (REPORT_ACCOUNTS) and the same
- * journal (JOURNAL_ENTRIES), so the P&L net income, trial balance totals,
- * balance sheet, cash flow, and equity statement can never drift apart.
+ * derived from the same accounts + entries, so P&L net income, trial
+ * balance totals, balance sheet, cash flow, and equity statement can never
+ * drift apart.
  */
 
 export type ReportAccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
@@ -47,10 +50,25 @@ export interface JournalEntry {
 /* Period labels                                                       */
 /* ------------------------------------------------------------------ */
 
-export const REPORT_ENTITY = "Fortress Reserve — Demo Entity";
-export const REPORT_PERIOD_LABEL = "For the month ended July 31, 2026";
-export const REPORT_AS_OF_LABEL = "As of July 31, 2026";
-export const REPORT_OPENING_LABEL = "Opening balance, July 1, 2026";
+/* ------------------------------------------------------------------ */
+/* Period labels — computed from real data, never hardcoded            */
+/* ------------------------------------------------------------------ */
+
+/** "As of {today}" — for point-in-time statements (balance sheet, trial balance). */
+export function reportAsOfLabel(): string {
+  return `As of ${fmtReportDate(new Date().toISOString().slice(0, 10))}`;
+}
+
+/** "For the period {earliest} – {latest}" — for period statements, derived from real entries. */
+export function reportPeriodLabel(entries: JournalEntry[]): string {
+  if (entries.length === 0) return "No transactions recorded yet";
+  const dates = entries.map((entry) => entry.date).sort();
+  const start = dates[0];
+  const end = dates[dates.length - 1];
+  return start === end
+    ? `For ${fmtReportDate(start)}`
+    : `For the period ${fmtReportDate(start)} – ${fmtReportDate(end)}`;
+}
 
 /* ------------------------------------------------------------------ */
 /* Chart of accounts (mock)                                            */
