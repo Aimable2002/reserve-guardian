@@ -225,14 +225,17 @@ function ChartOfAccountsPage() {
   );
 }
 
-function AccountDialog({
+export function AccountDialog({
   open,
   onOpenChange,
   account,
+  onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   account?: ReportAccount;
+  /** Fires right after a successful create/update, with the saved input — lets a caller (e.g. the journal entry dialog) auto-select the account it just created. */
+  onSaved?: (input: AccountInput) => void;
 }) {
   const store = useReportsStore();
   const [code, setCode] = useState("");
@@ -277,6 +280,7 @@ function AccountDialog({
       if (account?.id) await store.updateAccount(account.id, input);
       else await store.createAccount(input);
       toast.success(account ? "Account updated" : "Account added");
+      onSaved?.(input);
       onOpenChange(false);
     } catch (saveError) {
       const message =
