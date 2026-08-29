@@ -15,15 +15,13 @@ import { SUPPORTED_CURRENCIES } from "@/lib/reports-data";
 import { describeError, useReportsStore } from "@/lib/reports-store";
 
 /**
- * Gate shown before a user has any Financial Reports books.
- *
- * The standard chart of accounts (Cash, Accounts Receivable, Equipment, …)
- * is still pre-built and gets seeded here, same as before — that list is
- * just structure, and picking from it is what happens naturally when the
- * user records their first journal entry. What this screen does NOT do is
- * put a balance in any of them: every account starts at 0. Opening balances,
- * if the user has any, are entered afterwards on the Chart of Accounts page
- * where they're always visible and editable — never invented up front.
+ * Prompt shown when profiles.default_currency is null — the one piece of
+ * setup Financial Reports actually needs the user to state. The chart of
+ * accounts (Cash, Accounts Receivable, Equipment, …) is pre-built and
+ * already seeded by the time this shows, all starting at 0 — that part
+ * needs no prompt since it's structure, not money. This screen only asks
+ * for currency, and saves it onto the existing profiles.default_currency
+ * column (shared with wallet/reserve — setting it here sets it everywhere).
  */
 export function FirstTimeSetup() {
   const store = useReportsStore();
@@ -46,10 +44,8 @@ export function FirstTimeSetup() {
     }
     setSaving(true);
     try {
-      // Every account starts at 0 — nothing is pre-filled. Add real opening
-      // balances afterwards from Chart of Accounts if you have any.
-      await store.completeSetup(resolvedCurrency, {});
-      toast.success("Books set up");
+      await store.completeSetup(resolvedCurrency);
+      toast.success("Currency set");
     } catch (setupError) {
       const message = describeError(setupError);
       setError(message);
@@ -67,12 +63,11 @@ export function FirstTimeSetup() {
         </span>
         <div>
           <h2 className="text-lg font-bold text-reserve-navy sm:text-xl dark:text-white">
-            Set up your books
+            What currency are you recording in?
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-reserve-slate">
-            One question to start: what currency will you record in? Your chart of accounts is set
-            up automatically, all starting at zero — no balance is added until you record it
-            yourself. You can add opening balances anytime from Chart of Accounts.
+            Your chart of accounts is already set up, every account starting at zero. This just sets
+            how amounts are displayed and stored across your account.
           </p>
         </div>
       </div>
@@ -110,7 +105,7 @@ export function FirstTimeSetup() {
       )}
 
       <Button type="button" className="w-full" disabled={saving} onClick={() => void submit()}>
-        {saving ? "Setting up…" : "Start my books"}
+        {saving ? "Saving…" : "Save currency"}
       </Button>
     </div>
   );
