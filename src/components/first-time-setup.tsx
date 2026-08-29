@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SUPPORTED_CURRENCIES } from "@/lib/reports-data";
-import { useReportsStore } from "@/lib/reports-store";
+import { describeError, useReportsStore } from "@/lib/reports-store";
 
 /**
  * Gate shown before a user has any Financial Reports books.
@@ -51,8 +51,7 @@ export function FirstTimeSetup() {
       await store.completeSetup(resolvedCurrency, {});
       toast.success("Books set up");
     } catch (setupError) {
-      const message =
-        setupError instanceof Error ? setupError.message : "Could not set up your books.";
+      const message = describeError(setupError);
       setError(message);
       toast.error(message);
     } finally {
