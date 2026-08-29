@@ -1,11 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { Pencil } from "lucide-react";
 import {
   reportPeriodLabel,
   closingBalance,
   fmtReportDate,
   ledgerForAccount,
+  type JournalEntry,
 } from "@/lib/reports-data";
 import { DocumentFooter, Money, ReportShell } from "@/components/report-ui";
+import { Button } from "@/components/ui/button";
+import { JournalEntryDialog } from "@/components/journal-entry-dialog";
 import { cn } from "@/lib/utils";
 import { useReportsStore } from "@/lib/reports-store";
 
@@ -37,6 +42,16 @@ const TYPE_BADGE: Record<string, string> = {
 function GeneralLedgerPage() {
   const { entries, accounts, loading } = useReportsStore();
   const today = fmtReportDate(new Date().toISOString().slice(0, 10));
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | undefined>();
+
+  const editByRef = (ref: string) => {
+    const match = entries.find((entry) => entry.ref === ref);
+    if (!match) return;
+    setEditingEntry(match);
+    setEditorOpen(true);
+  };
+
   return (
     <ReportShell title="General Ledger" subtitle={reportPeriodLabel(entries)}>
       <div className="space-y-8">
@@ -91,6 +106,9 @@ function GeneralLedgerPage() {
                       <th className="px-3 py-2 text-right font-semibold">Debit</th>
                       <th className="px-3 py-2 text-right font-semibold">Credit</th>
                       <th className="px-4 py-2 text-right font-semibold">Balance</th>
+                      <th className="px-2 py-2 text-right font-semibold">
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -103,6 +121,7 @@ function GeneralLedgerPage() {
                       <td className="px-4 py-2 text-right">
                         <Money value={acc.opening} className="text-reserve-slate" />
                       </td>
+                      <td className="px-2 py-2" />
                     </tr>
                     {rows.map((r, i) => (
                       <tr
@@ -140,6 +159,17 @@ function GeneralLedgerPage() {
                             className="font-medium text-reserve-navy dark:text-white"
                           />
                         </td>
+                        <td className="px-2 py-2 text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Edit ${r.ref}`}
+                            onClick={() => editByRef(r.ref)}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                     <tr className="bg-reserve-navy/[0.03] font-semibold dark:bg-white/5">
@@ -155,6 +185,7 @@ function GeneralLedgerPage() {
                           className="font-bold text-reserve-navy dark:text-white"
                         />
                       </td>
+                      <td className="px-2 py-2" />
                     </tr>
                   </tbody>
                 </table>
@@ -164,6 +195,7 @@ function GeneralLedgerPage() {
         })}
       </div>
       <DocumentFooter />
+      <JournalEntryDialog open={editorOpen} onOpenChange={setEditorOpen} entry={editingEntry} />
     </ReportShell>
   );
 }
