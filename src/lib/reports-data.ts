@@ -57,23 +57,123 @@ export const REPORT_OPENING_LABEL = "Opening balance, July 1, 2026";
 /* ------------------------------------------------------------------ */
 
 export const REPORT_ACCOUNTS: ReportAccount[] = [
-  { code: "1000", name: "Cash", type: "asset", subtype: "current", normal: "debit", opening: 20000 },
-  { code: "1100", name: "Accounts Receivable", type: "asset", subtype: "current", normal: "debit", opening: 0 },
-  { code: "1500", name: "Equipment", type: "asset", subtype: "non-current", normal: "debit", opening: 15000 },
-  { code: "2100", name: "Accounts Payable", type: "liability", subtype: "current", normal: "credit", opening: 0 },
-  { code: "2200", name: "Loan Payable", type: "liability", subtype: "non-current", normal: "credit", opening: 10000 },
-  { code: "3000", name: "Owner's Capital", type: "equity", subtype: null, normal: "credit", opening: 25000 },
-  { code: "3100", name: "Owner's Draws", type: "equity", subtype: "contra-equity", normal: "debit", opening: 0 },
-  { code: "4000", name: "Rent Income", type: "revenue", subtype: "operating", normal: "credit", opening: 0 },
-  { code: "4100", name: "Service Income", type: "revenue", subtype: "operating", normal: "credit", opening: 0 },
-  { code: "5000", name: "Salaries Expense", type: "expense", subtype: "operating", normal: "debit", opening: 0 },
-  { code: "5100", name: "Utilities Expense", type: "expense", subtype: "operating", normal: "debit", opening: 0 },
-  { code: "5200", name: "Supplies Expense", type: "expense", subtype: "operating", normal: "debit", opening: 0 },
-  { code: "5900", name: "Bank Charges", type: "expense", subtype: "other", normal: "debit", opening: 0 },
+  {
+    code: "1000",
+    name: "Cash",
+    type: "asset",
+    subtype: "current",
+    normal: "debit",
+    opening: 20000,
+  },
+  {
+    code: "1100",
+    name: "Accounts Receivable",
+    type: "asset",
+    subtype: "current",
+    normal: "debit",
+    opening: 0,
+  },
+  {
+    code: "1500",
+    name: "Equipment",
+    type: "asset",
+    subtype: "non-current",
+    normal: "debit",
+    opening: 15000,
+  },
+  {
+    code: "2100",
+    name: "Accounts Payable",
+    type: "liability",
+    subtype: "current",
+    normal: "credit",
+    opening: 0,
+  },
+  {
+    code: "2200",
+    name: "Loan Payable",
+    type: "liability",
+    subtype: "non-current",
+    normal: "credit",
+    opening: 10000,
+  },
+  {
+    code: "3000",
+    name: "Owner's Capital",
+    type: "equity",
+    subtype: null,
+    normal: "credit",
+    opening: 25000,
+  },
+  {
+    code: "3100",
+    name: "Owner's Draws",
+    type: "equity",
+    subtype: "contra-equity",
+    normal: "debit",
+    opening: 0,
+  },
+  {
+    code: "4000",
+    name: "Rent Income",
+    type: "revenue",
+    subtype: "operating",
+    normal: "credit",
+    opening: 0,
+  },
+  {
+    code: "4100",
+    name: "Service Income",
+    type: "revenue",
+    subtype: "operating",
+    normal: "credit",
+    opening: 0,
+  },
+  {
+    code: "5000",
+    name: "Salaries Expense",
+    type: "expense",
+    subtype: "operating",
+    normal: "debit",
+    opening: 0,
+  },
+  {
+    code: "5100",
+    name: "Utilities Expense",
+    type: "expense",
+    subtype: "operating",
+    normal: "debit",
+    opening: 0,
+  },
+  {
+    code: "5200",
+    name: "Supplies Expense",
+    type: "expense",
+    subtype: "operating",
+    normal: "debit",
+    opening: 0,
+  },
+  {
+    code: "5900",
+    name: "Bank Charges",
+    type: "expense",
+    subtype: "other",
+    normal: "debit",
+    opening: 0,
+  },
 ];
 
-/** Seed chart of accounts used the first time a user opens Financial Reports. */
-export const DEFAULT_REPORT_ACCOUNTS = REPORT_ACCOUNTS;
+/**
+ * Starter chart-of-accounts *structure* used to set up a new user's books —
+ * codes, names, types and normal balances only. Opening balances are always
+ * zero here: real starting figures come from the user during first-time
+ * setup (see FirstTimeSetup / completeSetup). Nothing is invented — money
+ * only enters the books when the user states it.
+ */
+export const DEFAULT_REPORT_ACCOUNTS: ReportAccount[] = REPORT_ACCOUNTS.map((account) => ({
+  ...account,
+  opening: 0,
+}));
 
 const UNKNOWN_ACCOUNT: ReportAccount = {
   code: "----",
@@ -85,7 +185,10 @@ const UNKNOWN_ACCOUNT: ReportAccount = {
 };
 
 /** Look up an account by code within the supplied chart of accounts. */
-export function getAccount(code: string, accounts: ReportAccount[] = REPORT_ACCOUNTS): ReportAccount {
+export function getAccount(
+  code: string,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+): ReportAccount {
   return accounts.find((a) => a.code === code) ?? { ...UNKNOWN_ACCOUNT, code };
 }
 
@@ -217,15 +320,47 @@ export const JOURNAL_ENTRIES: JournalEntry[] = [
 /* Formatting                                                          */
 /* ------------------------------------------------------------------ */
 
-const rwf = new Intl.NumberFormat("en-RW", {
-  style: "currency",
-  currency: "RWF",
-  minimumFractionDigits: 2,
-});
+/** Common currencies offered during first-time setup. */
+export const SUPPORTED_CURRENCIES = [
+  { code: "RWF", label: "Rwandan Franc (RWF)" },
+  { code: "USD", label: "US Dollar (USD)" },
+  { code: "EUR", label: "Euro (EUR)" },
+  { code: "GBP", label: "British Pound (GBP)" },
+  { code: "KES", label: "Kenyan Shilling (KES)" },
+  { code: "UGX", label: "Ugandan Shilling (UGX)" },
+  { code: "TZS", label: "Tanzanian Shilling (TZS)" },
+  { code: "NGN", label: "Nigerian Naira (NGN)" },
+  { code: "ZAR", label: "South African Rand (ZAR)" },
+  { code: "XAF", label: "Central African CFA Franc (XAF)" },
+] as const;
 
-/** Consistent mock currency formatting used across every report. */
-export function fmtReportMoney(value: number): string {
-  return rwf.format(value);
+const formatterCache = new Map<string, Intl.NumberFormat>();
+
+function formatterFor(currency: string): Intl.NumberFormat {
+  let fmt = formatterCache.get(currency);
+  if (!fmt) {
+    try {
+      fmt = new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 2,
+      });
+    } catch {
+      // Unknown/unsupported ISO code — fall back to a plain numeric display with the code as suffix.
+      fmt = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2 });
+    }
+    formatterCache.set(currency, fmt);
+  }
+  return fmt;
+}
+
+/**
+ * Format a value in the books' currency. Currency is per-user (chosen during
+ * first-time setup) — never hardcoded, since these are real user figures,
+ * not a fixed-currency demo.
+ */
+export function fmtReportMoney(value: number, currency: string): string {
+  return formatterFor(currency).format(value);
 }
 
 export function fmtReportDate(iso: string): string {
@@ -253,7 +388,11 @@ export function linesForAccount(code: string, entries: JournalEntry[] = JOURNAL_
 }
 
 /** Closing balance of an account, expressed in its normal-balance terms. */
-export function closingBalance(code: string, entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS): number {
+export function closingBalance(
+  code: string,
+  entries: JournalEntry[] = JOURNAL_ENTRIES,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+): number {
   const acc = getAccount(code, accounts);
   let bal = acc.opening;
   for (const { line } of linesForAccount(code, entries)) {
@@ -272,7 +411,11 @@ export interface LedgerRow {
 }
 
 /** General-ledger view for one account: opening row + running balance. */
-export function ledgerForAccount(code: string, entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS): LedgerRow[] {
+export function ledgerForAccount(
+  code: string,
+  entries: JournalEntry[] = JOURNAL_ENTRIES,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+): LedgerRow[] {
   const acc = getAccount(code, accounts);
   let bal = acc.opening;
   return linesForAccount(code, entries).map(({ entry, line }) => {
@@ -296,7 +439,10 @@ export interface TrialBalanceRow {
 }
 
 /** Trial balance: every account with a non-zero closing balance, in its normal column. */
-export function trialBalanceRows(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS): { rows: TrialBalanceRow[]; totalDebit: number; totalCredit: number } {
+export function trialBalanceRows(
+  entries: JournalEntry[] = JOURNAL_ENTRIES,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+): { rows: TrialBalanceRow[]; totalDebit: number; totalCredit: number } {
   const rows: TrialBalanceRow[] = [];
   let totalDebit = 0;
   let totalCredit = 0;
@@ -320,7 +466,10 @@ export interface StatementLine {
   amount: number;
 }
 
-export function incomeStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
+export function incomeStatement(
+  entries: JournalEntry[] = JOURNAL_ENTRIES,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+) {
   const revenue: StatementLine[] = [];
   const operatingExpenses: StatementLine[] = [];
   const otherExpenses: StatementLine[] = [];
@@ -341,12 +490,24 @@ export function incomeStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, accou
   const totalOther = round2(otherExpenses.reduce((s, l) => s + l.amount, 0));
   const totalExpenses = round2(totalOperating + totalOther);
   const netIncome = round2(totalRevenue - totalExpenses);
-  return { revenue, operatingExpenses, otherExpenses, totalRevenue, totalOperating, totalOther, totalExpenses, netIncome };
+  return {
+    revenue,
+    operatingExpenses,
+    otherExpenses,
+    totalRevenue,
+    totalOperating,
+    totalOther,
+    totalExpenses,
+    netIncome,
+  };
 }
 
 /* --------------------------- Balance sheet ------------------------- */
 
-export function balanceSheet(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
+export function balanceSheet(
+  entries: JournalEntry[] = JOURNAL_ENTRIES,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+) {
   const currentAssets: StatementLine[] = [];
   const nonCurrentAssets: StatementLine[] = [];
   const currentLiabilities: StatementLine[] = [];
@@ -354,16 +515,26 @@ export function balanceSheet(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts
   for (const acc of accounts) {
     const bal = closingBalance(acc.code, entries, accounts);
     if (acc.type === "asset" && bal !== 0) {
-      (acc.subtype === "current" ? currentAssets : nonCurrentAssets).push({ code: acc.code, name: acc.name, amount: bal });
+      (acc.subtype === "current" ? currentAssets : nonCurrentAssets).push({
+        code: acc.code,
+        name: acc.name,
+        amount: bal,
+      });
     } else if (acc.type === "liability" && bal !== 0) {
-      (acc.subtype === "current" ? currentLiabilities : nonCurrentLiabilities).push({ code: acc.code, name: acc.name, amount: bal });
+      (acc.subtype === "current" ? currentLiabilities : nonCurrentLiabilities).push({
+        code: acc.code,
+        name: acc.name,
+        amount: bal,
+      });
     }
   }
   const totalCurrentAssets = round2(currentAssets.reduce((s, l) => s + l.amount, 0));
   const totalNonCurrentAssets = round2(nonCurrentAssets.reduce((s, l) => s + l.amount, 0));
   const totalAssets = round2(totalCurrentAssets + totalNonCurrentAssets);
   const totalCurrentLiabilities = round2(currentLiabilities.reduce((s, l) => s + l.amount, 0));
-  const totalNonCurrentLiabilities = round2(nonCurrentLiabilities.reduce((s, l) => s + l.amount, 0));
+  const totalNonCurrentLiabilities = round2(
+    nonCurrentLiabilities.reduce((s, l) => s + l.amount, 0),
+  );
   const totalLiabilities = round2(totalCurrentLiabilities + totalNonCurrentLiabilities);
 
   // Equity section: capital account closing balance + retained net income − draws.
@@ -393,11 +564,18 @@ export function balanceSheet(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts
 
 /* --------------------------- Cash flow ----------------------------- */
 
-export function cashFlowStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
+export function cashFlowStatement(
+  entries: JournalEntry[] = JOURNAL_ENTRIES,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+) {
   const { netIncome } = incomeStatement(entries, accounts);
   // Working-capital movements, derived from opening vs closing balances.
-  const arIncrease = round2(closingBalance("1100", entries, accounts) - getAccount("1100", accounts).opening);
-  const apIncrease = round2(closingBalance("2100", entries, accounts) - getAccount("2100", accounts).opening);
+  const arIncrease = round2(
+    closingBalance("1100", entries, accounts) - getAccount("1100", accounts).opening,
+  );
+  const apIncrease = round2(
+    closingBalance("2100", entries, accounts) - getAccount("2100", accounts).opening,
+  );
 
   const operating = [
     { name: "Net income", amount: netIncome },
@@ -424,12 +602,25 @@ export function cashFlowStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, acc
   const beginningCash = getAccount("1000", accounts).opening;
   const endingCash = round2(beginningCash + netChange);
 
-  return { operating, netOperating, investing, netInvesting, financing, netFinancing, netChange, beginningCash, endingCash };
+  return {
+    operating,
+    netOperating,
+    investing,
+    netInvesting,
+    financing,
+    netFinancing,
+    netChange,
+    beginningCash,
+    endingCash,
+  };
 }
 
 /* --------------------- Statement of changes in equity -------------- */
 
-export function equityStatement(entries: JournalEntry[] = JOURNAL_ENTRIES, accounts: ReportAccount[] = REPORT_ACCOUNTS) {
+export function equityStatement(
+  entries: JournalEntry[] = JOURNAL_ENTRIES,
+  accounts: ReportAccount[] = REPORT_ACCOUNTS,
+) {
   const openingCapital = getAccount("3000", accounts).opening;
   const contributions = round2(
     linesForAccount("3000", entries).reduce((s, { line }) => s + line.credit - line.debit, 0),
