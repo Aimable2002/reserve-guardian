@@ -66,7 +66,7 @@ export function JournalEntryDialog({
 }) {
   const store = useReportsStore();
   const [ref, setRef] = useState("");
-  const [date, setDate] = useState("2026-07-31");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
   const [lines, setLines] = useState<JournalLine[]>([emptyLine(), emptyLine()]);
   const [error, setError] = useState("");
