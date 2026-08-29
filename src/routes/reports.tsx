@@ -2,10 +2,10 @@ import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { FileBarChart2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ReportsStoreProvider } from "@/lib/reports-store";
+import { ReportsStoreProvider, useReportsStore } from "@/lib/reports-store";
 import { JournalEntryDialog } from "@/components/journal-entry-dialog";
+import { FirstTimeSetup } from "@/components/first-time-setup";
 import { Button } from "@/components/ui/button";
-
 
 const reportNav = [
   { to: "/reports/general-ledger", label: "General Ledger" },
@@ -23,16 +23,28 @@ export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
       { title: "Financial Reports — Fortress Reserve" },
-      { name: "description", content: "Accounting-standard financial reports prototype with mock data." },
+      {
+        name: "description",
+        content: "Accounting-standard financial reports prototype with mock data.",
+      },
     ],
   }),
   component: ReportsLayout,
 });
 
 function ReportsLayout() {
-  const [entryOpen, setEntryOpen] = useState(false);
   return (
     <ReportsStoreProvider>
+      <ReportsLayoutInner />
+    </ReportsStoreProvider>
+  );
+}
+
+function ReportsLayoutInner() {
+  const [entryOpen, setEntryOpen] = useState(false);
+  const store = useReportsStore();
+
+  return (
     <div className="min-h-screen bg-reserve-bg text-reserve-navy dark:bg-reserve-navy dark:text-white">
       <header className="border-b border-reserve-navy/10 bg-white/70 backdrop-blur dark:border-white/10 dark:bg-reserve-navy/60">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4 sm:px-6">
@@ -41,44 +53,61 @@ function ReportsLayout() {
           </span>
           <div className="min-w-0">
             <h1 className="text-base font-bold tracking-tight">Financial Reports</h1>
-            <p className="text-[11px] text-reserve-slate">Manual bookkeeping · your private books · USD</p>
+            <p className="text-[11px] text-reserve-slate">
+              Manual bookkeeping · your private books{store.currency ? ` · ${store.currency}` : ""}
+            </p>
           </div>
-          <Button type="button" size="sm" className="ml-auto shrink-0" onClick={() => setEntryOpen(true)}>
-            <Plus /> <span className="hidden sm:inline">New journal entry</span><span className="sm:hidden">Record</span>
-          </Button>
+          {!store.needsSetup && (
+            <Button
+              type="button"
+              size="sm"
+              className="ml-auto shrink-0"
+              onClick={() => setEntryOpen(true)}
+            >
+              <Plus /> <span className="hidden sm:inline">New journal entry</span>
+              <span className="sm:hidden">Record</span>
+            </Button>
+          )}
         </div>
       </header>
       <JournalEntryDialog open={entryOpen} onOpenChange={setEntryOpen} />
 
-
       <div className="mx-auto max-w-5xl gap-8 px-4 py-6 sm:px-6 md:flex">
-        {/* Sidebar on desktop, horizontal scroll tabs on mobile */}
-        <nav
-          aria-label="Report documents"
-          className="scrollbar-none -mx-4 mb-6 flex gap-1 overflow-x-auto px-4 pb-1 md:mx-0 md:mb-0 md:w-52 md:shrink-0 md:flex-col md:overflow-visible md:px-0"
-        >
-          {reportNav.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              activeOptions={{ exact: true }}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-2 text-[13px] font-medium whitespace-nowrap text-reserve-slate transition hover:bg-reserve-navy/5 dark:hover:bg-white/5",
-              )}
-              activeProps={{
-                className: "bg-reserve-navy text-white hover:bg-reserve-navy dark:bg-white dark:text-reserve-navy dark:hover:bg-white",
-              }}
+        {store.needsSetup ? (
+          <div className="w-full">
+            <FirstTimeSetup />
+          </div>
+        ) : (
+          <>
+            {/* Sidebar on desktop, horizontal scroll tabs on mobile */}
+            <nav
+              aria-label="Report documents"
+              className="scrollbar-none -mx-4 mb-6 flex gap-1 overflow-x-auto px-4 pb-1 md:mx-0 md:mb-0 md:w-52 md:shrink-0 md:flex-col md:overflow-visible md:px-0"
             >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+              {reportNav.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  activeOptions={{ exact: true }}
+                  className={cn(
+                    "shrink-0 rounded-lg px-3 py-2 text-[13px] font-medium whitespace-nowrap text-reserve-slate transition hover:bg-reserve-navy/5 dark:hover:bg-white/5",
+                  )}
+                  activeProps={{
+                    className:
+                      "bg-reserve-navy text-white hover:bg-reserve-navy dark:bg-white dark:text-reserve-navy dark:hover:bg-white",
+                  }}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
 
-        <main className="min-w-0 flex-1 pb-32">
-          <Outlet />
-        </main>
+            <main className="min-w-0 flex-1 pb-32">
+              <Outlet />
+            </main>
+          </>
+        )}
       </div>
     </div>
-    </ReportsStoreProvider>
   );
 }
