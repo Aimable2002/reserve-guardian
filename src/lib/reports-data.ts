@@ -217,15 +217,15 @@ export const JOURNAL_ENTRIES: JournalEntry[] = [
 /* Formatting                                                          */
 /* ------------------------------------------------------------------ */
 
-const usd = new Intl.NumberFormat("en-US", {
+const rwf = new Intl.NumberFormat("en-RW", {
   style: "currency",
-  currency: "USD",
+  currency: "RWF",
   minimumFractionDigits: 2,
 });
 
 /** Consistent mock currency formatting used across every report. */
 export function fmtReportMoney(value: number): string {
-  return usd.format(value);
+  return rwf.format(value);
 }
 
 export function fmtReportDate(iso: string): string {
