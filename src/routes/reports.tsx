@@ -16,6 +16,7 @@ const reportNav = [
   { to: "/reports/cash-flow", label: "Cash Flow" },
   { to: "/reports/equity", label: "Changes in Equity" },
   { to: "/reports/financial-report", label: "Financial Report" },
+  { to: "/reports/accounts", label: "Chart of Accounts" },
 ] as const;
 
 export const Route = createFileRoute("/reports")({
@@ -40,7 +41,7 @@ function ReportsLayout() {
           </span>
           <div className="min-w-0">
             <h1 className="text-base font-bold tracking-tight">Financial Reports</h1>
-            <p className="text-[11px] text-reserve-slate">Mock data prototype · July 2026 · USD</p>
+            <p className="text-[11px] text-reserve-slate">Manual bookkeeping · your private books · USD</p>
           </div>
           <Button type="button" size="sm" className="ml-auto shrink-0" onClick={() => setEntryOpen(true)}>
             <Plus /> <span className="hidden sm:inline">New journal entry</span><span className="sm:hidden">Record</span>

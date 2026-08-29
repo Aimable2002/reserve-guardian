@@ -36,6 +36,7 @@ import { Route as ReportsFinancialReportRouteImport } from './routes/reports.fin
 import { Route as ReportsEquityRouteImport } from './routes/reports.equity'
 import { Route as ReportsCashFlowRouteImport } from './routes/reports.cash-flow'
 import { Route as ReportsBalanceSheetRouteImport } from './routes/reports.balance-sheet'
+import { Route as ReportsAccountsRouteImport } from './routes/reports.accounts'
 import { Route as PayCodeRouteImport } from './routes/pay.$code'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 
@@ -174,6 +175,11 @@ const ReportsBalanceSheetRoute = ReportsBalanceSheetRouteImport.update({
   path: '/balance-sheet',
   getParentRoute: () => ReportsRoute,
 } as any)
+const ReportsAccountsRoute = ReportsAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => ReportsRoute,
+} as any)
 const PayCodeRoute = PayCodeRouteImport.update({
   id: '/pay/$code',
   path: '/pay/$code',
@@ -197,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reports/accounts': typeof ReportsAccountsRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
   '/reports/cash-flow': typeof ReportsCashFlowRoute
   '/reports/equity': typeof ReportsEquityRoute
@@ -226,6 +233,7 @@ export interface FileRoutesByTo {
   '/lending': typeof LendingRoute
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reports/accounts': typeof ReportsAccountsRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
   '/reports/cash-flow': typeof ReportsCashFlowRoute
   '/reports/equity': typeof ReportsEquityRoute
@@ -258,6 +266,7 @@ export interface FileRoutesById {
   '/wallet': typeof WalletRouteWithChildren
   '/invite/$token': typeof InviteTokenRoute
   '/pay/$code': typeof PayCodeRoute
+  '/reports/accounts': typeof ReportsAccountsRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
   '/reports/cash-flow': typeof ReportsCashFlowRoute
   '/reports/equity': typeof ReportsEquityRoute
@@ -291,6 +300,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reports/accounts'
     | '/reports/balance-sheet'
     | '/reports/cash-flow'
     | '/reports/equity'
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/lending'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reports/accounts'
     | '/reports/balance-sheet'
     | '/reports/cash-flow'
     | '/reports/equity'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/wallet'
     | '/invite/$token'
     | '/pay/$code'
+    | '/reports/accounts'
     | '/reports/balance-sheet'
     | '/reports/cash-flow'
     | '/reports/equity'
@@ -578,6 +590,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsBalanceSheetRouteImport
       parentRoute: typeof ReportsRoute
     }
+    '/reports/accounts': {
+      id: '/reports/accounts'
+      path: '/accounts'
+      fullPath: '/reports/accounts'
+      preLoaderRoute: typeof ReportsAccountsRouteImport
+      parentRoute: typeof ReportsRoute
+    }
     '/pay/$code': {
       id: '/pay/$code'
       path: '/pay/$code'
@@ -596,6 +615,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface ReportsRouteChildren {
+  ReportsAccountsRoute: typeof ReportsAccountsRoute
   ReportsBalanceSheetRoute: typeof ReportsBalanceSheetRoute
   ReportsCashFlowRoute: typeof ReportsCashFlowRoute
   ReportsEquityRoute: typeof ReportsEquityRoute
@@ -608,6 +628,7 @@ interface ReportsRouteChildren {
 }
 
 const ReportsRouteChildren: ReportsRouteChildren = {
+  ReportsAccountsRoute: ReportsAccountsRoute,
   ReportsBalanceSheetRoute: ReportsBalanceSheetRoute,
   ReportsCashFlowRoute: ReportsCashFlowRoute,
   ReportsEquityRoute: ReportsEquityRoute,

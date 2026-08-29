@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { REPORT_PERIOD_LABEL, fmtReportDate, getAccount, type JournalEntry } from "@/lib/reports-data";
@@ -56,12 +57,21 @@ function JournalPage() {
         </p>
         <Button type="button" onClick={createEntry}><Plus /> New journal entry</Button>
       </div>
+      {store.loading && <p className="py-8 text-center text-sm text-reserve-slate">Loading your books…</p>}
+      {store.error && <p role="alert" className="py-4 text-sm font-medium text-destructive">{store.error}</p>}
+      {!store.loading && store.entries.length === 0 && (
+        <div className="rounded-xl border border-dashed border-reserve-navy/20 py-12 text-center dark:border-white/20">
+          <p className="text-sm font-medium text-reserve-navy dark:text-white">No journal entries yet</p>
+          <p className="mt-1 text-xs text-reserve-slate">Record your first entry to build every report.</p>
+          <Button type="button" className="mt-4" onClick={createEntry}><Plus /> New journal entry</Button>
+        </div>
+      )}
       <div className="space-y-5">
         {store.entries.map((entry) => {
           const total = entry.lines.reduce((s, l) => s + l.debit, 0);
           return (
             <article
-              key={entry.ref}
+              key={entry.id ?? entry.ref}
               className="overflow-hidden rounded-xl border border-reserve-navy/10 dark:border-white/10"
             >
               <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-reserve-navy/10 bg-reserve-navy/[0.03] px-4 py-2.5 dark:border-white/10 dark:bg-white/5">
@@ -85,7 +95,7 @@ function JournalPage() {
                 </thead>
                 <tbody>
                   {entry.lines.map((line, i) => {
-                    const acc = getAccount(line.account);
+                    const acc = getAccount(line.account, store.accounts);
                     const isCredit = line.credit > 0;
                     return (
                       <tr key={i} className="border-b border-reserve-navy/5 dark:border-white/5">
@@ -134,8 +144,13 @@ function JournalPage() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                if (deletingEntry) store.deleteEntry(deletingEntry.ref);
+                const target = deletingEntry;
                 setDeletingEntry(undefined);
+                if (target?.id) {
+                  store.deleteEntry(target.id).catch((deleteError: unknown) => {
+                    toast.error(deleteError instanceof Error ? deleteError.message : "Could not delete this entry.");
+                  });
+                }
               }}
             >
               Delete entry

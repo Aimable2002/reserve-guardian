@@ -21,8 +21,8 @@ import { useReportsStore } from "@/lib/reports-store";
  */
 
 export function IncomeStatementBody() {
-  const { entries } = useReportsStore();
-  const is = incomeStatement(entries);
+  const { entries, accounts } = useReportsStore();
+  const is = incomeStatement(entries, accounts);
   return (
     <div>
       <SectionHeader>Revenue</SectionHeader>
@@ -52,8 +52,8 @@ export function IncomeStatementBody() {
 }
 
 export function BalanceSheetBody() {
-  const { entries } = useReportsStore();
-  const bs = balanceSheet(entries);
+  const { entries, accounts } = useReportsStore();
+  const bs = balanceSheet(entries, accounts);
   return (
     <div>
       <SectionHeader>Assets</SectionHeader>
@@ -100,8 +100,8 @@ export function BalanceSheetBody() {
 }
 
 export function CashFlowBody() {
-  const { entries } = useReportsStore();
-  const cf = cashFlowStatement(entries);
+  const { entries, accounts } = useReportsStore();
+  const cf = cashFlowStatement(entries, accounts);
   return (
     <div>
       <SectionHeader>Operating Activities</SectionHeader>
@@ -134,8 +134,8 @@ export function CashFlowBody() {
 }
 
 export function EquityStatementBody() {
-  const { entries } = useReportsStore();
-  const eq = equityStatement(entries);
+  const { entries, accounts } = useReportsStore();
+  const eq = equityStatement(entries, accounts);
   return (
     <div>
       <SectionHeader>Statement of Changes in Equity</SectionHeader>
