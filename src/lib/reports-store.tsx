@@ -44,6 +44,8 @@ interface ReportsStoreValue {
   needsSetup: boolean;
   /** Currency to display books in — read from profiles.default_currency. Null until set. */
   currency: string | null;
+  /** Display name for the books header — profiles.display_name, falling back to email. */
+  entityName: string;
   reload: () => Promise<void>;
   /** Records the user's currency choice onto profiles.default_currency. */
   completeSetup: (currency: string) => Promise<void>;
@@ -130,6 +132,7 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [currency, setCurrency] = useState<string | null>(null);
+  const [entityName, setEntityName] = useState<string>("Your Books");
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -158,9 +161,10 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
       // read from the existing profiles.default_currency column (shared with
       // wallet/reserve). If it's null, surface the setup prompt so they can
       // set it instead of guessing a currency for them.
-      const reportCurrency = await fetchReportCurrency(userId);
-      setCurrency(reportCurrency);
-      setNeedsSetup(!reportCurrency);
+      const profile = await fetchProfile(userId);
+      setCurrency(profile.currency);
+      setNeedsSetup(!profile.currency);
+      setEntityName(profile.displayName || user?.email || "Your Books");
 
       const { data: entryData, error: entryError } = await supabase
         .from("report_journal_entries")
@@ -193,7 +197,7 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, user?.email]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -230,6 +234,7 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
       error,
       needsSetup,
       currency,
+      entityName,
       reload: load,
       completeSetup: async (chosenCurrency) => {
         if (!userId) throw new Error("Sign in to set up your books.");
@@ -325,7 +330,18 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
         await load();
       },
     };
-  }, [accounts, allAccounts, entries, loading, error, needsSetup, currency, load, userId]);
+  }, [
+    accounts,
+    allAccounts,
+    entries,
+    loading,
+    error,
+    needsSetup,
+    currency,
+    entityName,
+    load,
+    userId,
+  ]);
 
   return <ReportsStoreContext.Provider value={value}>{children}</ReportsStoreContext.Provider>;
 }
@@ -347,14 +363,17 @@ async function fetchAccounts(userId: string): Promise<AccountRow[]> {
   return (data ?? []) as AccountRow[];
 }
 
-async function fetchReportCurrency(userId: string): Promise<string | null> {
+async function fetchProfile(
+  userId: string,
+): Promise<{ currency: string | null; displayName: string | null }> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("default_currency")
+    .select("default_currency, display_name")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
-  return (data as { default_currency: string | null } | null)?.default_currency ?? null;
+  const row = data as { default_currency: string | null; display_name: string | null } | null;
+  return { currency: row?.default_currency ?? null, displayName: row?.display_name ?? null };
 }
 
 async function saveReportCurrency(userId: string, currency: string) {
