@@ -2,7 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { REPORT_PERIOD_LABEL, fmtReportDate, getAccount, type JournalEntry } from "@/lib/reports-data";
+import {
+  reportPeriodLabel,
+  fmtReportDate,
+  getAccount,
+  type JournalEntry,
+} from "@/lib/reports-data";
 import { DocumentFooter, Money, ReportShell } from "@/components/report-ui";
 import { cn } from "@/lib/utils";
 import { useReportsStore } from "@/lib/reports-store";
@@ -23,9 +28,15 @@ export const Route = createFileRoute("/reports/journal")({
   head: () => ({
     meta: [
       { title: "Journal — Financial Reports — Fortress Reserve" },
-      { name: "description", content: "Raw double-entry journal of mock transactions with debit and credit lines." },
+      {
+        name: "description",
+        content: "Raw double-entry journal of your transactions with debit and credit lines.",
+      },
       { property: "og:title", content: "Journal — Fortress Reserve" },
-      { property: "og:description", content: "Mock transaction record: every entry as debit plus matching credit." },
+      {
+        property: "og:description",
+        content: "Transaction record: every entry as debit plus matching credit.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -50,20 +61,35 @@ function JournalPage() {
   };
 
   return (
-    <ReportShell title="Journal — Transaction Record" subtitle={REPORT_PERIOD_LABEL}>
+    <ReportShell title="Journal — Transaction Record" subtitle={reportPeriodLabel(store.entries)}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-reserve-navy/10 pb-4 dark:border-white/10">
         <p className="max-w-xl text-xs leading-relaxed text-reserve-slate">
-          This manual journal is the only source for every financial report. App wallet and reserve activity is never recorded here automatically.
+          This manual journal is the only source for every financial report. App wallet and reserve
+          activity is never recorded here automatically.
         </p>
-        <Button type="button" onClick={createEntry}><Plus /> New journal entry</Button>
+        <Button type="button" onClick={createEntry}>
+          <Plus /> New journal entry
+        </Button>
       </div>
-      {store.loading && <p className="py-8 text-center text-sm text-reserve-slate">Loading your books…</p>}
-      {store.error && <p role="alert" className="py-4 text-sm font-medium text-destructive">{store.error}</p>}
+      {store.loading && (
+        <p className="py-8 text-center text-sm text-reserve-slate">Loading your books…</p>
+      )}
+      {store.error && (
+        <p role="alert" className="py-4 text-sm font-medium text-destructive">
+          {store.error}
+        </p>
+      )}
       {!store.loading && store.entries.length === 0 && (
         <div className="rounded-xl border border-dashed border-reserve-navy/20 py-12 text-center dark:border-white/20">
-          <p className="text-sm font-medium text-reserve-navy dark:text-white">No journal entries yet</p>
-          <p className="mt-1 text-xs text-reserve-slate">Record your first entry to build every report.</p>
-          <Button type="button" className="mt-4" onClick={createEntry}><Plus /> New journal entry</Button>
+          <p className="text-sm font-medium text-reserve-navy dark:text-white">
+            No journal entries yet
+          </p>
+          <p className="mt-1 text-xs text-reserve-slate">
+            Record your first entry to build every report.
+          </p>
+          <Button type="button" className="mt-4" onClick={createEntry}>
+            <Plus /> New journal entry
+          </Button>
         </div>
       )}
       <div className="space-y-5">
@@ -76,13 +102,33 @@ function JournalPage() {
             >
               <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-reserve-navy/10 bg-reserve-navy/[0.03] px-4 py-2.5 dark:border-white/10 dark:bg-white/5">
                 <div className="flex items-baseline gap-3">
-                  <span className="font-mono text-xs font-semibold text-reserve-navy dark:text-white">{entry.ref}</span>
+                  <span className="font-mono text-xs font-semibold text-reserve-navy dark:text-white">
+                    {entry.ref}
+                  </span>
                   <span className="text-xs text-reserve-slate">{fmtReportDate(entry.date)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <p className="mr-2 text-xs font-medium text-reserve-navy dark:text-white/90">{entry.description}</p>
-                  <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${entry.ref}`} onClick={() => editEntry(entry)}><Pencil /></Button>
-                  <Button type="button" variant="ghost" size="icon" aria-label={`Delete ${entry.ref}`} onClick={() => setDeletingEntry(entry)}><Trash2 /></Button>
+                  <p className="mr-2 text-xs font-medium text-reserve-navy dark:text-white/90">
+                    {entry.description}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Edit ${entry.ref}`}
+                    onClick={() => editEntry(entry)}
+                  >
+                    <Pencil />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Delete ${entry.ref}`}
+                    onClick={() => setDeletingEntry(entry)}
+                  >
+                    <Trash2 />
+                  </Button>
                 </div>
               </header>
               <table className="w-full text-sm">
@@ -99,15 +145,32 @@ function JournalPage() {
                     const isCredit = line.credit > 0;
                     return (
                       <tr key={i} className="border-b border-reserve-navy/5 dark:border-white/5">
-                        <td className={cn("px-4 py-2 text-reserve-navy dark:text-white/90", isCredit && "pl-9")}>
-                          <span className="mr-2 font-mono text-xs text-reserve-slate">{acc.code}</span>
+                        <td
+                          className={cn(
+                            "px-4 py-2 text-reserve-navy dark:text-white/90",
+                            isCredit && "pl-9",
+                          )}
+                        >
+                          <span className="mr-2 font-mono text-xs text-reserve-slate">
+                            {acc.code}
+                          </span>
                           {acc.name}
                         </td>
                         <td className="px-3 py-2 text-right">
-                          {line.debit !== 0 && <Money value={line.debit} className="text-reserve-navy dark:text-white/90" />}
+                          {line.debit !== 0 && (
+                            <Money
+                              value={line.debit}
+                              className="text-reserve-navy dark:text-white/90"
+                            />
+                          )}
                         </td>
                         <td className="px-4 py-2 text-right">
-                          {line.credit !== 0 && <Money value={line.credit} className="text-reserve-navy dark:text-white/90" />}
+                          {line.credit !== 0 && (
+                            <Money
+                              value={line.credit}
+                              className="text-reserve-navy dark:text-white/90"
+                            />
+                          )}
                         </td>
                       </tr>
                     );
@@ -117,10 +180,16 @@ function JournalPage() {
                       Entry total
                     </td>
                     <td className="px-3 py-1.5 text-right">
-                      <Money value={total} className="font-semibold text-reserve-navy dark:text-white" />
+                      <Money
+                        value={total}
+                        className="font-semibold text-reserve-navy dark:text-white"
+                      />
                     </td>
                     <td className="px-4 py-1.5 text-right">
-                      <Money value={total} className="font-semibold text-reserve-navy dark:text-white" />
+                      <Money
+                        value={total}
+                        className="font-semibold text-reserve-navy dark:text-white"
+                      />
                     </td>
                   </tr>
                 </tbody>
@@ -131,12 +200,16 @@ function JournalPage() {
       </div>
       <DocumentFooter />
       <JournalEntryDialog open={editorOpen} onOpenChange={setEditorOpen} entry={editingEntry} />
-      <AlertDialog open={Boolean(deletingEntry)} onOpenChange={(open) => !open && setDeletingEntry(undefined)}>
+      <AlertDialog
+        open={Boolean(deletingEntry)}
+        onOpenChange={(open) => !open && setDeletingEntry(undefined)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete journal entry?</AlertDialogTitle>
             <AlertDialogDescription>
-              Deleting {deletingEntry?.ref} will recalculate every financial statement. This prototype action cannot be undone.
+              Deleting {deletingEntry?.ref} will recalculate every financial statement. This
+              prototype action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -148,7 +221,11 @@ function JournalPage() {
                 setDeletingEntry(undefined);
                 if (target?.id) {
                   store.deleteEntry(target.id).catch((deleteError: unknown) => {
-                    toast.error(deleteError instanceof Error ? deleteError.message : "Could not delete this entry.");
+                    toast.error(
+                      deleteError instanceof Error
+                        ? deleteError.message
+                        : "Could not delete this entry.",
+                    );
                   });
                 }
               }}
