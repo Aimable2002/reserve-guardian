@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, PiggyBank } from "lucide-react";
+import { PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,55 +11,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEFAULT_REPORT_ACCOUNTS, SUPPORTED_CURRENCIES } from "@/lib/reports-data";
+import { SUPPORTED_CURRENCIES } from "@/lib/reports-data";
 import { useReportsStore } from "@/lib/reports-store";
 
 /**
  * Gate shown before a user has any Financial Reports books.
  *
- * We never auto-create an opening cash balance (or any other balance) —
- * money only enters the ledger because the user stated it. This screen asks
- * for exactly the two things needed to start honest books: which currency,
- * and what the user actually has today, account by account.
+ * The standard chart of accounts (Cash, Accounts Receivable, Equipment, …)
+ * is still pre-built and gets seeded here, same as before — that list is
+ * just structure, and picking from it is what happens naturally when the
+ * user records their first journal entry. What this screen does NOT do is
+ * put a balance in any of them: every account starts at 0. Opening balances,
+ * if the user has any, are entered afterwards on the Chart of Accounts page
+ * where they're always visible and editable — never invented up front.
  */
 export function FirstTimeSetup() {
   const store = useReportsStore();
   const [currency, setCurrency] = useState<string>("");
   const [customCurrency, setCustomCurrency] = useState("");
-  const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const resolvedCurrency = currency === "OTHER" ? customCurrency.trim().toUpperCase() : currency;
-
-  const openings = useMemo(() => {
-    const out: Record<string, number> = {};
-    for (const account of DEFAULT_REPORT_ACCOUNTS) {
-      const raw = values[account.code];
-      const n = raw ? Number(raw) : 0;
-      out[account.code] = Number.isFinite(n) ? n : 0;
-    }
-    return out;
-  }, [values]);
-
-  const { debitTotal, creditTotal, balanced } = useMemo(() => {
-    let debit = 0;
-    let credit = 0;
-    for (const account of DEFAULT_REPORT_ACCOUNTS) {
-      const amount = openings[account.code] ?? 0;
-      if (amount < 0) continue;
-      if (account.normal === "debit") debit += amount;
-      else credit += amount;
-    }
-    const round = (n: number) => Math.round(n * 100) / 100;
-    return {
-      debitTotal: round(debit),
-      creditTotal: round(credit),
-      balanced: round(debit) === round(credit),
-    };
-  }, [openings]);
-
-  const anyEntered = Object.values(openings).some((v) => v !== 0);
 
   const submit = async () => {
     setError("");
@@ -71,21 +44,11 @@ export function FirstTimeSetup() {
       setError("Enter a 3-letter currency code, e.g. RWF, USD, KES.");
       return;
     }
-    for (const account of DEFAULT_REPORT_ACCOUNTS) {
-      if ((openings[account.code] ?? 0) < 0) {
-        setError(`${account.name}: opening balance can't be negative.`);
-        return;
-      }
-    }
-    if (!balanced) {
-      setError(
-        "Your opening balances don't balance. Total debit-side accounts (assets) must equal total credit-side accounts (liabilities + equity), same as double-entry demands anywhere else.",
-      );
-      return;
-    }
     setSaving(true);
     try {
-      await store.completeSetup(resolvedCurrency, openings);
+      // Every account starts at 0 — nothing is pre-filled. Add real opening
+      // balances afterwards from Chart of Accounts if you have any.
+      await store.completeSetup(resolvedCurrency, {});
       toast.success("Books set up");
     } catch (setupError) {
       const message =
@@ -98,7 +61,7 @@ export function FirstTimeSetup() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl rounded-2xl border border-reserve-navy/10 bg-white p-5 shadow-sm sm:p-8 dark:border-white/10 dark:bg-reserve-navy/40">
+    <div className="mx-auto max-w-md rounded-2xl border border-reserve-navy/10 bg-white p-5 shadow-sm sm:p-8 dark:border-white/10 dark:bg-reserve-navy/40">
       <div className="mb-6 flex items-start gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-reserve-navy text-white dark:bg-white dark:text-reserve-navy">
           <PiggyBank className="size-4" />
@@ -108,9 +71,9 @@ export function FirstTimeSetup() {
             Set up your books
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-reserve-slate">
-            This is a blank ledger — nothing is pre-filled. Pick the currency you'll record in, then
-            enter what you actually have today for each account. If you're starting from nothing,
-            leave every field at 0.
+            One question to start: what currency will you record in? Your chart of accounts is set
+            up automatically, all starting at zero — no balance is added until you record it
+            yourself. You can add opening balances anytime from Chart of Accounts.
           </p>
         </div>
       </div>
@@ -141,66 +104,13 @@ export function FirstTimeSetup() {
         )}
       </div>
 
-      <div className="mb-4">
-        <p className="text-xs font-semibold tracking-[0.1em] text-reserve-slate uppercase">
-          Opening balances{anyEntered ? "" : " (optional — defaults to 0)"}
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-reserve-slate">
-          Enter each in the account's normal-balance terms. Nothing here is invented — whatever you
-          don't enter starts at zero.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        {DEFAULT_REPORT_ACCOUNTS.map((account) => (
-          <div key={account.code} className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-reserve-navy dark:text-white/90">
-                {account.name}
-              </p>
-              <p className="text-[10px] text-reserve-slate uppercase">
-                {account.code} · {account.normal} normal
-              </p>
-            </div>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              className="w-32 text-right"
-              value={values[account.code] ?? ""}
-              placeholder="0"
-              onChange={(event) =>
-                setValues((prev) => ({ ...prev, [account.code]: event.target.value }))
-              }
-            />
-          </div>
-        ))}
-      </div>
-
-      <div
-        className={`mt-5 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium ${
-          balanced
-            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-            : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
-        }`}
-      >
-        {balanced ? (
-          <CheckCircle2 className="size-4 shrink-0" />
-        ) : (
-          <AlertTriangle className="size-4 shrink-0" />
-        )}
-        {balanced
-          ? "Debits and credits balance."
-          : `Out of balance: debit accounts ${debitTotal.toLocaleString()} vs credit accounts ${creditTotal.toLocaleString()}.`}
-      </div>
-
       {error && (
-        <p role="alert" className="mt-3 text-sm font-medium text-destructive">
+        <p role="alert" className="mb-3 text-sm font-medium text-destructive">
           {error}
         </p>
       )}
 
-      <Button type="button" className="mt-5 w-full" disabled={saving} onClick={() => void submit()}>
+      <Button type="button" className="w-full" disabled={saving} onClick={() => void submit()}>
         {saving ? "Setting up…" : "Start my books"}
       </Button>
     </div>
