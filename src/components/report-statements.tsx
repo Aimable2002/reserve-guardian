@@ -2,6 +2,7 @@ import {
   balanceSheet,
   cashFlowStatement,
   equityStatement,
+  fmtReportDate,
   incomeStatement,
 } from "@/lib/reports-data";
 import {
@@ -136,15 +137,18 @@ export function CashFlowBody() {
 export function EquityStatementBody() {
   const { entries, accounts } = useReportsStore();
   const eq = equityStatement(entries, accounts);
+  const dates = entries.map((entry) => entry.date).sort();
+  const openLabel = dates.length ? `Opening Equity, ${fmtReportDate(dates[0])}` : "Opening Equity";
+  const closeLabel = `Closing Equity, ${fmtReportDate(new Date().toISOString().slice(0, 10))}`;
   return (
     <div>
       <SectionHeader>Statement of Changes in Equity</SectionHeader>
-      <StatementRow label="Opening Equity, July 1, 2026" amount={eq.openingCapital} />
+      <StatementRow label={openLabel} amount={eq.openingCapital} />
       <StatementRow label="Add: Capital Contributions" amount={eq.contributions} indent />
       <StatementRow label="Add: Net Income for the Period" amount={eq.netIncome} indent />
       <StatementRow label="Less: Owner's Withdrawals / Draws" amount={eq.draws} indent negative />
       <div className="mt-4">
-        <GrandTotalRow label="Closing Equity, July 31, 2026" amount={eq.closingEquity} />
+        <GrandTotalRow label={closeLabel} amount={eq.closingEquity} />
       </div>
     </div>
   );
