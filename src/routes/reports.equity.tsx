@@ -1,15 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { REPORT_PERIOD_LABEL } from "@/lib/reports-data";
+import { reportPeriodLabel } from "@/lib/reports-data";
 import { DocumentFooter, ReportShell } from "@/components/report-ui";
+import { useReportsStore } from "@/lib/reports-store";
 import { EquityStatementBody } from "@/components/report-statements";
 
 export const Route = createFileRoute("/reports/equity")({
   head: () => ({
     meta: [
       { title: "Statement of Changes in Equity — Financial Reports — Fortress Reserve" },
-      { name: "description", content: "Mock statement of changes in equity: opening equity, net income, draws, contributions, closing equity." },
+      {
+        name: "description",
+        content:
+          "Statement of changes in equity: opening equity, net income, draws, contributions, closing equity.",
+      },
       { property: "og:title", content: "Statement of Changes in Equity — Fortress Reserve" },
-      { property: "og:description", content: "Mock equity roll-forward from opening to closing balance for July 2026." },
+      {
+        property: "og:description",
+        content: "Equity roll-forward from opening to closing balance.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -18,8 +26,9 @@ export const Route = createFileRoute("/reports/equity")({
 });
 
 function EquityPage() {
+  const { entries } = useReportsStore();
   return (
-    <ReportShell title="Statement of Changes in Equity" subtitle={REPORT_PERIOD_LABEL}>
+    <ReportShell title="Statement of Changes in Equity" subtitle={reportPeriodLabel(entries)}>
       <EquityStatementBody />
       <DocumentFooter />
     </ReportShell>
