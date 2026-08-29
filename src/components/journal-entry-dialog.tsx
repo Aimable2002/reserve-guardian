@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { fmtReportMoney, type JournalEntry, type JournalLine } from "@/lib/reports-data";
-import { useReportsStore } from "@/lib/reports-store";
+import { describeError, useReportsStore } from "@/lib/reports-store";
 
 const buildSchema = (codes: string[]) =>
   z.object({
@@ -132,7 +132,7 @@ export function JournalEntryDialog({
       toast.success(entry ? "Journal entry updated" : "Journal entry posted");
       onOpenChange(false);
     } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : "Could not save this entry.";
+      const message = describeError(saveError);
       setError(message);
       toast.error(message);
     } finally {
