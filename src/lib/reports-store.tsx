@@ -85,6 +85,28 @@ type EntryRow = {
 
 const num = (value: number | string) => Number(value) || 0;
 
+/**
+ * Extract a readable message from any thrown value. Supabase's query errors
+ * (PostgrestError) are plain objects, not real `Error` instances, so a naive
+ * `err instanceof Error` check silently drops their message — which is
+ * exactly the info needed to diagnose things like a missing table/migration
+ * or an RLS policy rejection. Always prefer the underlying message.
+ */
+export function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    const withMessage = err as { message?: unknown; details?: unknown; hint?: unknown };
+    if (typeof withMessage.message === "string" && withMessage.message) {
+      const extra = [withMessage.details, withMessage.hint].filter(
+        (part): part is string => typeof part === "string" && part.length > 0,
+      );
+      return extra.length ? `${withMessage.message} (${extra.join(" — ")})` : withMessage.message;
+    }
+  }
+  if (typeof err === "string" && err) return err;
+  return "Something went wrong.";
+}
+
 function mapAccount(row: AccountRow): ReportAccount {
   return {
     id: row.id,
@@ -173,7 +195,7 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
       setAllAccounts(accounts);
       setEntries(mapped);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Could not load your books.");
+      setError(describeError(loadError));
     } finally {
       setLoading(false);
     }
