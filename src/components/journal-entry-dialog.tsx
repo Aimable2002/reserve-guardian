@@ -17,12 +17,16 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { fmtReportMoney, type JournalEntry, type JournalLine } from "@/lib/reports-data";
 import { describeError, useReportsStore } from "@/lib/reports-store";
+import { AccountDialog } from "@/routes/reports.accounts";
+
+const ADD_ACCOUNT_VALUE = "__add_new_account__";
 
 const buildSchema = (codes: string[]) =>
   z.object({
@@ -71,6 +75,8 @@ export function JournalEntryDialog({
   const [lines, setLines] = useState<JournalLine[]>([emptyLine(), emptyLine()]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addAccountOpen, setAddAccountOpen] = useState(false);
+  const [pendingLineIndex, setPendingLineIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -199,7 +205,14 @@ export function JournalEntryDialog({
             >
               <Select
                 value={line.account}
-                onValueChange={(account) => updateLine(index, { account })}
+                onValueChange={(account) => {
+                  if (account === ADD_ACCOUNT_VALUE) {
+                    setPendingLineIndex(index);
+                    setAddAccountOpen(true);
+                    return;
+                  }
+                  updateLine(index, { account });
+                }}
               >
                 <SelectTrigger aria-label={`Account line ${index + 1}`}>
                   <SelectValue placeholder="Select account" />
@@ -210,6 +223,12 @@ export function JournalEntryDialog({
                       {account.code} · {account.name}
                     </SelectItem>
                   ))}
+                  <SelectSeparator />
+                  <SelectItem value={ADD_ACCOUNT_VALUE}>
+                    <span className="flex items-center gap-1.5 text-reserve-navy dark:text-white">
+                      <Plus className="size-3.5" /> Add new account…
+                    </span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Input
@@ -291,6 +310,16 @@ export function JournalEntryDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <AccountDialog
+        open={addAccountOpen}
+        onOpenChange={setAddAccountOpen}
+        onSaved={(input) => {
+          if (pendingLineIndex !== null) {
+            updateLine(pendingLineIndex, { account: input.code });
+            setPendingLineIndex(null);
+          }
+        }}
+      />
     </Dialog>
   );
 }
