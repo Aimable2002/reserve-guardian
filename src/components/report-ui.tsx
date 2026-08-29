@@ -1,6 +1,12 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { fmtReportMoney, REPORT_AS_OF_LABEL, REPORT_ENTITY, REPORT_PERIOD_LABEL } from "@/lib/reports-data";
+import {
+  fmtReportMoney,
+  REPORT_AS_OF_LABEL,
+  REPORT_ENTITY,
+  REPORT_PERIOD_LABEL,
+} from "@/lib/reports-data";
+import { useReportsStore } from "@/lib/reports-store";
 
 /**
  * Presentational primitives shared by every Financial Reports document.
@@ -19,8 +25,12 @@ export function ReportShell({
   return (
     <div className="rounded-2xl border border-reserve-navy/10 bg-white p-5 shadow-sm sm:p-8 dark:border-white/10 dark:bg-reserve-navy/40">
       <div className="mb-6 text-center">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-reserve-slate uppercase">{REPORT_ENTITY}</p>
-        <h2 className="mt-1 text-xl font-bold text-reserve-navy sm:text-2xl dark:text-white">{title}</h2>
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-reserve-slate uppercase">
+          {REPORT_ENTITY}
+        </p>
+        <h2 className="mt-1 text-xl font-bold text-reserve-navy sm:text-2xl dark:text-white">
+          {title}
+        </h2>
         <p className="mt-0.5 text-xs text-reserve-slate">{subtitle}</p>
       </div>
       {children}
@@ -29,9 +39,11 @@ export function ReportShell({
 }
 
 export function Money({ value, className }: { value: number; className?: string }) {
+  // Currency is per-user (set during first-time setup) — never a fixed default.
+  const { currency } = useReportsStore();
   return (
     <span className={cn("font-mono text-[13px] tabular-nums", className)}>
-      {fmtReportMoney(value)}
+      {fmtReportMoney(value, currency ?? "USD")}
     </span>
   );
 }
@@ -66,11 +78,10 @@ export function StatementRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5">
-      <span className={cn("text-sm text-reserve-navy dark:text-white/90", indent && "pl-5")}>{label}</span>
-      <Money
-        value={negative ? -amount : amount}
-        className="text-reserve-navy dark:text-white/90"
-      />
+      <span className={cn("text-sm text-reserve-navy dark:text-white/90", indent && "pl-5")}>
+        {label}
+      </span>
+      <Money value={negative ? -amount : amount} className="text-reserve-navy dark:text-white/90" />
     </div>
   );
 }
@@ -89,7 +100,9 @@ export function TotalRow({ label, amount }: { label: string; amount: number }) {
 export function GrandTotalRow({ label, amount }: { label: string; amount: number }) {
   return (
     <div className="mt-1 flex items-baseline justify-between gap-4 border-t-2 border-reserve-navy py-2.5 dark:border-white">
-      <span className="text-sm font-bold tracking-wide text-reserve-navy uppercase dark:text-white">{label}</span>
+      <span className="text-sm font-bold tracking-wide text-reserve-navy uppercase dark:text-white">
+        {label}
+      </span>
       <Money value={amount} className="text-[15px] font-bold text-reserve-navy dark:text-white" />
     </div>
   );
