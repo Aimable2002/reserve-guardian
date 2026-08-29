@@ -40,13 +40,13 @@ interface ReportsStoreValue {
   entries: JournalEntry[];
   loading: boolean;
   error: string | null;
-  /** True once we know this user has no report_settings row yet — books must not be seeded. */
+  /** True once we know this user's profile has no currency set yet. */
   needsSetup: boolean;
-  /** Books' currency, chosen by the user during first-time setup. Null until setup completes. */
+  /** Currency to display books in — read from profiles.default_currency. Null until set. */
   currency: string | null;
   reload: () => Promise<void>;
-  /** First-time setup: records the user's currency choice and their own opening balances. */
-  completeSetup: (currency: string, openings: Record<string, number>) => Promise<void>;
+  /** Records the user's currency choice onto profiles.default_currency. */
+  completeSetup: (currency: string) => Promise<void>;
   addEntry: (entry: JournalEntry) => Promise<void>;
   updateEntry: (entryId: string, entry: JournalEntry) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
@@ -143,30 +143,24 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const settings = await fetchSettings(userId);
-      if (!settings) {
-        // No settings row yet: this user has never completed first-time setup.
-        // Do NOT seed accounts or opening balances — that would put money in
-        // the books the user never entered. Surface the setup gate instead.
-        setCurrency(null);
-        setNeedsSetup(true);
-        setAllAccounts([]);
-        setEntries([]);
-        return;
-      }
-      setCurrency(settings.currency);
-      setNeedsSetup(false);
-
+      // Accounts are just structure (codes/names/types), never money — safe
+      // to seed automatically the first time, same as the pre-built list
+      // always worked. Every opening balance is 0; nothing is invented.
       let accountRows = await fetchAccounts(userId);
       if (accountRows.length === 0) {
-        // Settings exist but accounts don't (shouldn't normally happen — setup
-        // writes both together). Recover the chart-of-accounts structure only,
-        // still with zero opening balances; never fabricate a balance here.
-        await seedAccounts(userId, {});
+        await seedAccounts(userId);
         accountRows = await fetchAccounts(userId);
       }
       const accounts = accountRows.map(mapAccount);
       const codeById = new Map(accounts.map((a) => [a.id as string, a.code]));
+
+      // Currency is the one thing that actually needs the user to state it —
+      // read from the existing profiles.default_currency column (shared with
+      // wallet/reserve). If it's null, surface the setup prompt so they can
+      // set it instead of guessing a currency for them.
+      const reportCurrency = await fetchReportCurrency(userId);
+      setCurrency(reportCurrency);
+      setNeedsSetup(!reportCurrency);
 
       const { data: entryData, error: entryError } = await supabase
         .from("report_journal_entries")
@@ -237,13 +231,9 @@ export function ReportsStoreProvider({ children }: { children: ReactNode }) {
       needsSetup,
       currency,
       reload: load,
-      completeSetup: async (chosenCurrency, openings) => {
+      completeSetup: async (chosenCurrency) => {
         if (!userId) throw new Error("Sign in to set up your books.");
-        const { error: settingsError } = await supabase
-          .from("report_settings")
-          .insert({ user_id: userId, currency: chosenCurrency });
-        if (settingsError) throw settingsError;
-        await seedAccounts(userId, openings);
+        await saveReportCurrency(userId, chosenCurrency);
         await load();
       },
       addEntry: async (entry) => {
@@ -357,26 +347,32 @@ async function fetchAccounts(userId: string): Promise<AccountRow[]> {
   return (data ?? []) as AccountRow[];
 }
 
-type SettingsRow = { user_id: string; currency: string };
-
-async function fetchSettings(userId: string): Promise<SettingsRow | null> {
+async function fetchReportCurrency(userId: string): Promise<string | null> {
   const { data, error } = await supabase
-    .from("report_settings")
-    .select("user_id, currency")
-    .eq("user_id", userId)
+    .from("profiles")
+    .select("default_currency")
+    .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
-  return (data as SettingsRow | null) ?? null;
+  return (data as { default_currency: string | null } | null)?.default_currency ?? null;
+}
+
+async function saveReportCurrency(userId: string, currency: string) {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ default_currency: currency })
+    .eq("id", userId);
+  if (error) throw error;
 }
 
 /**
- * Create the standard starter chart of accounts for a user, at the opening
- * balances they entered during first-time setup (default 0 for anything they
- * left blank). This never runs on its own — it's only called from
- * completeSetup (after the user has chosen a currency and stated their
- * figures) or as structure-only recovery with an empty openings map.
+ * Create the standard starter chart of accounts for a user — codes, names,
+ * types only, every opening balance 0. This is structure, not money, so it
+ * seeds automatically the first time; no user prompt needed for it. Real
+ * balances (if any) are added afterwards from Chart of Accounts, entered by
+ * the user, never invented here.
  */
-async function seedAccounts(userId: string, openings: Record<string, number>) {
+async function seedAccounts(userId: string) {
   const { error } = await supabase.from("report_accounts").insert(
     DEFAULT_REPORT_ACCOUNTS.map((account, index) => ({
       user_id: userId,
@@ -385,7 +381,7 @@ async function seedAccounts(userId: string, openings: Record<string, number>) {
       type: account.type,
       subtype: account.subtype,
       normal: account.normal,
-      opening_balance: openings[account.code] ?? 0,
+      opening_balance: 0,
       is_active: true,
       sort_order: index,
     })),
